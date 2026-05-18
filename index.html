@@ -176,32 +176,13 @@ canvas{display:block;width:100%;}
 .cyc-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;padding:0 4px;}
 
 
-/* BREAK BANNER */
-.break-banner{
-  position:fixed;top:0;left:0;right:0;z-index:999;
-  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
-  gap:10px;font-family:'Noto Sans JP',sans-serif;
-  animation:slideDown .4s ease;
-  box-shadow:0 4px 20px rgba(0,0,0,.5);
-}
-.break-banner.bd{background:linear-gradient(135deg,#003a52,#005a7a);border-bottom:2px solid var(--bear);}
-.break-banner.bu{background:linear-gradient(135deg,#3a0010,#5a0018);border-bottom:2px solid var(--bull);}
-@keyframes slideDown{from{transform:translateY(-100%);opacity:0;}to{transform:translateY(0);opacity:1;}}
-.banner-body{flex:1;}
-.banner-ttl{font-size:15px;font-weight:700;margin-bottom:2px;}
-.banner-sub{font-family:var(--mono);font-size:11px;opacity:.8;}
-.banner-close{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;opacity:.7;padding:4px;}
-.banner-close:hover{opacity:1;}
-/* MACD daily zero line indicator */
-.macd-badge{display:inline-block;padding:3px 8px;border-radius:3px;font-family:var(--mono);font-size:10px;margin-top:6px;}
 
 footer{text-align:center;padding:16px 0;font-family:var(--mono);font-size:9px;color:var(--dim);
   letter-spacing:2px;border-top:1px solid var(--border);margin-top:4px;}
 </style>
 </head>
 <body>
-<div id="breakBanner" style="display:none"></div>
-<div class="wrap" id="mainWrap">
+<div class="wrap">
   <header>
     <div class="hdr-sub">FUTURES ANALYSIS SYSTEM</div>
     <select id="instrumentSelect" onchange="setInstrument(this.value)">
@@ -235,6 +216,18 @@ footer{text-align:center;padding:16px 0;font-family:var(--mono);font-size:9px;co
 </div>
 
 <script>
+// グローバルエラーキャッチ
+window.onerror = function(msg, src, line, col, err) {
+  const app = document.getElementById('app');
+  if(app) app.innerHTML = '<div style="background:rgba(255,0,0,.1);border:1px solid red;padding:12px;font-family:monospace;font-size:12px;color:#f88;border-radius:6px">'
+    + '⚠ JSエラー<br>' + msg + '<br>行: ' + line + '</div>';
+  return false;
+};
+window.onunhandledrejection = function(e) {
+  const app = document.getElementById('app');
+  if(app) app.innerHTML = '<div style="background:rgba(255,0,0,.1);border:1px solid red;padding:12px;font-family:monospace;font-size:12px;color:#f88;border-radius:6px">'
+    + '⚠ Promise エラー<br>' + e.reason + '</div>';
+};
 // ===== STATE =====
 let BASE_INST = localStorage.getItem('base_inst') || 'NKD=F';
 let BASE_TF   = localStorage.getItem('base_tf')   || '15m';
@@ -891,13 +884,6 @@ async function loadData() {
 
     renderCycList();
 
-    // ブレイクバナー（既に計算済みの結果を再利用）
-    const allAlerts = [
-      trendlineAnalysis(m15)?.alert,
-      trendlineAnalysis(h1)?.alert,
-      tlD?.alert,
-    ].filter(a => a && (a.type==='bd'||a.type==='bu'));
-    showBreakBanner(allAlerts);
 
   } catch(e) {
     clearInterval(timer);
@@ -908,29 +894,6 @@ async function loadData() {
 }
 
 
-function showBreakBanner(alerts) {
-  const el = document.getElementById('breakBanner');
-  if(!el) return;
-  // 最も重要なアラートを1つ選ぶ（bd > bu > null）
-  const bd = alerts.find(a => a && a.type === 'bd');
-  const bu = alerts.find(a => a && a.type === 'bu');
-  const top = bd || bu;
-  if(!top) { el.style.display='none'; document.getElementById('mainWrap').style.marginTop='0'; return; }
-  const isBd = top.type === 'bd';
-  el.style.display = 'block';
-  el.innerHTML =
-    '<div class="break-banner '+ top.type +'">'+
-      '<div style="font-size:24px">'+(isBd?'🔵':'🔴')+'</div>'+
-      '<div class="banner-body">'+
-        '<div class="banner-ttl" style="color:'+(isBd?'var(--bear)':'var(--bull)')+'">'+top.title+'</div>'+
-        '<div class="banner-sub">'+top.sub+'</div>'+
-      '</div>'+
-      '<button class="banner-close" onclick="document.getElementById('breakBanner').style.display='none';document.getElementById('mainWrap').style.marginTop='0'">✕</button>'+
-    '</div>';
-  // コンテンツを下にずらす
-  const h = el.offsetHeight;
-  document.getElementById('mainWrap').style.marginTop = h + 'px';
-}
 
 function switchDev(dv, lbl) {
   const p=document.getElementById('devPeriod');
