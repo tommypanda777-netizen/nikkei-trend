@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1140,10 +1141,18 @@ function getPrevLabel(tf) {
 // =============================================
 
 async function fetchViaCorsProxy(url) {
-  const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
-  const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try {
+    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
+    const res = await fetch(proxyUrl, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  } catch(e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 async function fetchYahooData(symbol, interval, range) {
