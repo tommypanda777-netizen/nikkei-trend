@@ -175,12 +175,33 @@ canvas{display:block;width:100%;}
   padding:4px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:10px;}
 .cyc-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;padding:0 4px;}
 
+
+/* BREAK BANNER */
+.break-banner{
+  position:fixed;top:0;left:0;right:0;z-index:999;
+  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
+  gap:10px;font-family:'Noto Sans JP',sans-serif;
+  animation:slideDown .4s ease;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+.break-banner.bd{background:linear-gradient(135deg,#003a52,#005a7a);border-bottom:2px solid var(--bear);}
+.break-banner.bu{background:linear-gradient(135deg,#3a0010,#5a0018);border-bottom:2px solid var(--bull);}
+@keyframes slideDown{from{transform:translateY(-100%);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.banner-body{flex:1;}
+.banner-ttl{font-size:15px;font-weight:700;margin-bottom:2px;}
+.banner-sub{font-family:var(--mono);font-size:11px;opacity:.8;}
+.banner-close{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;opacity:.7;padding:4px;}
+.banner-close:hover{opacity:1;}
+/* MACD daily zero line indicator */
+.macd-badge{display:inline-block;padding:3px 8px;border-radius:3px;font-family:var(--mono);font-size:10px;margin-top:6px;}
+
 footer{text-align:center;padding:16px 0;font-family:var(--mono);font-size:9px;color:var(--dim);
   letter-spacing:2px;border-top:1px solid var(--border);margin-top:4px;}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div id="breakBanner" style="display:none"></div>
+<div class="wrap" id="mainWrap">
   <header>
     <div class="hdr-sub">FUTURES ANALYSIS SYSTEM</div>
     <select id="instrumentSelect" onchange="setInstrument(this.value)">
@@ -853,11 +874,68 @@ async function loadData() {
 
     renderCycList();
 
+    // ブレイクバナー表示
+    const allAlerts = [
+      trendlineAnalysis(m15)?.alert,
+      trendlineAnalysis(h1)?.alert,
+      tlD?.alert,
+    ].filter(a => a && (a.type==='bd'||a.type==='bu'));
+    showBreakBanner(allAlerts);
+
+    // 日足MACDゼロライン割れバッジ
+    const macdBadgeEl = document.getElementById('macdDailyBadge');
+    if(macdBadgeEl) {
+      const e12=ema(d1.closes.slice(-26),12), e26=ema(d1.closes.slice(-26),26);
+      const macdD=e12-e26;
+      const prev12=ema(d1.closes.slice(-27,-1),12), prev26=ema(d1.closes.slice(-27,-1),26);
+      const macdPrev=prev12-prev26;
+      const crossedBelow = macdPrev>=0 && macdD<0;
+      const crossedAbove = macdPrev<=0 && macdD>0;
+      if(crossedBelow){
+        macdBadgeEl.style.display='inline-block';
+        macdBadgeEl.style.background='rgba(0,196,255,.2)';
+        macdBadgeEl.style.color='var(--bear)';
+        macdBadgeEl.textContent='⚡ 日足MACD ゼロライン割れ — 売りトリガー';
+      } else if(crossedAbove){
+        macdBadgeEl.style.display='inline-block';
+        macdBadgeEl.style.background='rgba(255,61,90,.2)';
+        macdBadgeEl.style.color='var(--bull)';
+        macdBadgeEl.textContent='⚡ 日足MACD ゼロライン突破 — 買いトリガー';
+      } else {
+        macdBadgeEl.style.display='none';
+      }
+    }
+
   } catch(e) {
     document.getElementById('app').innerHTML=
       '<div class="err-box">⚠ '+e.message+'<br><br>'+
       '<span style="font-size:10px;opacity:.6">↻ボタンで再試行してください</span></div>';
   }
+}
+
+
+function showBreakBanner(alerts) {
+  const el = document.getElementById('breakBanner');
+  if(!el) return;
+  // 最も重要なアラートを1つ選ぶ（bd > bu > null）
+  const bd = alerts.find(a => a && a.type === 'bd');
+  const bu = alerts.find(a => a && a.type === 'bu');
+  const top = bd || bu;
+  if(!top) { el.style.display='none'; document.getElementById('mainWrap').style.marginTop='0'; return; }
+  const isBd = top.type === 'bd';
+  el.style.display = 'block';
+  el.innerHTML =
+    '<div class="break-banner '+ top.type +'">'+
+      '<div style="font-size:24px">'+(isBd?'🔵':'🔴')+'</div>'+
+      '<div class="banner-body">'+
+        '<div class="banner-ttl" style="color:'+(isBd?'var(--bear)':'var(--bull)')+'">'+top.title+'</div>'+
+        '<div class="banner-sub">'+top.sub+'</div>'+
+      '</div>'+
+      '<button class="banner-close" onclick="document.getElementById('breakBanner').style.display='none';document.getElementById('mainWrap').style.marginTop='0'">✕</button>'+
+    '</div>';
+  // コンテンツを下にずらす
+  const h = el.offsetHeight;
+  document.getElementById('mainWrap').style.marginTop = h + 'px';
 }
 
 function switchDev(dv, lbl) {
