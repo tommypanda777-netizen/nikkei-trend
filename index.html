@@ -281,13 +281,22 @@ async function yahoo(sym, interval, range) {
 async function fetchAll() {
   const inst = INST[BASE_INST] || INST['NKD=F'];
   const sym = inst.syms[0];
-  // 順番に取得（並列だとSafariで問題が出ることがある）
-  const d1  = await yahoo(sym,'1d','6mo');
+
+  // 日足は必須、他は並列取得（失敗しても続行）
+  const d1 = await yahoo(sym,'1d','6mo');
   if (!d1) throw new Error('日足データを取得できませんでした');
-  const h1  = await yahoo(sym,'1h','5d') || d1;
-  const m15 = await yahoo(sym,'15m','2d') || h1;
-  const m5  = await yahoo(sym,'5m','1d') || m15;
-  const m30 = await yahoo(sym,'30m','5d') || m15;
+
+  const [h1r,m15r,m5r,m30r] = await Promise.allSettled([
+    yahoo(sym,'1h','5d'),
+    yahoo(sym,'15m','2d'),
+    yahoo(sym,'5m','1d'),
+    yahoo(sym,'30m','5d'),
+  ]);
+
+  const h1  = h1r.value  || d1;
+  const m15 = m15r.value || h1;
+  const m5  = m5r.value  || m15;
+  const m30 = m30r.value || m15;
   // 4H = 1H を4本まとめる
   const tf4h = (() => {
     if (h1.closes.length < 8) return h1;
@@ -559,10 +568,20 @@ function pct(v){ return (v>0?'+':'')+v.toFixed(2)+'%'; }
 
 async function loadData() {
   const app=document.getElementById('app');
-  app.innerHTML='<div class="loading">データ取得中...</div>';
+
+  // 進捗表示
+  let step=0;
+  const steps=['日足データ取得中...','時間足データ取得中...','分足データ取得中...','計算中...'];
+  app.innerHTML='<div class="loading">'+steps[0]+'</div>';
+  const timer=setInterval(()=>{
+    step=Math.min(step+1,steps.length-1);
+    const el=app.querySelector('.loading');
+    if(el) el.textContent=steps[step];
+  },3000);
 
   try {
     const data = await fetchAll();
+    clearInterval(timer);
     const {d1,h1,m15,m5,m30,tf4h,base}=data;
     const inst=INST[BASE_INST]||INST['NKD=F'];
     const cur=base.closes.at(-1);
@@ -874,7 +893,7 @@ async function loadData() {
 
     renderCycList();
 
-    // ブレイクバナー表示
+    // ブレイクバナー（既に計算済みの結果を再利用）
     const allAlerts = [
       trendlineAnalysis(m15)?.alert,
       trendlineAnalysis(h1)?.alert,
@@ -882,31 +901,8 @@ async function loadData() {
     ].filter(a => a && (a.type==='bd'||a.type==='bu'));
     showBreakBanner(allAlerts);
 
-    // 日足MACDゼロライン割れバッジ
-    const macdBadgeEl = document.getElementById('macdDailyBadge');
-    if(macdBadgeEl) {
-      const e12=ema(d1.closes.slice(-26),12), e26=ema(d1.closes.slice(-26),26);
-      const macdD=e12-e26;
-      const prev12=ema(d1.closes.slice(-27,-1),12), prev26=ema(d1.closes.slice(-27,-1),26);
-      const macdPrev=prev12-prev26;
-      const crossedBelow = macdPrev>=0 && macdD<0;
-      const crossedAbove = macdPrev<=0 && macdD>0;
-      if(crossedBelow){
-        macdBadgeEl.style.display='inline-block';
-        macdBadgeEl.style.background='rgba(0,196,255,.2)';
-        macdBadgeEl.style.color='var(--bear)';
-        macdBadgeEl.textContent='⚡ 日足MACD ゼロライン割れ — 売りトリガー';
-      } else if(crossedAbove){
-        macdBadgeEl.style.display='inline-block';
-        macdBadgeEl.style.background='rgba(255,61,90,.2)';
-        macdBadgeEl.style.color='var(--bull)';
-        macdBadgeEl.textContent='⚡ 日足MACD ゼロライン突破 — 買いトリガー';
-      } else {
-        macdBadgeEl.style.display='none';
-      }
-    }
-
   } catch(e) {
+    clearInterval(timer);
     document.getElementById('app').innerHTML=
       '<div class="err-box">⚠ '+e.message+'<br><br>'+
       '<span style="font-size:10px;opacity:.6">↻ボタンで再試行してください</span></div>';
