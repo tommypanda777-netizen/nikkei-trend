@@ -20,7 +20,7 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100vh;}
-.wrap{max-width:480px;margin:0 auto;padding:12px;}
+.wrap{max-width:100%;margin:0 auto;padding:12px;}
 
 /* HEADER */
 header{text-align:center;padding:14px 0 10px;border-bottom:1px solid var(--border);margin-bottom:14px;}
@@ -613,22 +613,20 @@ async function loadData() {
       const ac=active?'active-tf':'';
       const ico=bull?'🟥':bear?'🟦':'—';
       const txt=bull?'上昇':bear?'下降':'中立';
-      const col='#fff';
-      // trendline break
-      const tlt=trendlineAnalysis({key:t.key,an:t.an,closes:
-        t.key==='1d'?d1.closes:t.key==='1h'?h1.closes:m15.closes,
-        highs:t.key==='1d'?d1.highs:t.key==='1h'?h1.highs:m15.highs,
-        lows:t.key==='1d'?d1.lows:t.key==='1h'?h1.lows:m15.lows});
+      const col=bull?'var(--bull)':bear?'var(--bear)':'var(--dim)';
+      const tlt=trendlineAnalysis(
+        t.key==='1d'?d1:t.key==='1h'?h1:m15
+      );
       let brk='';
       if(tlt){
         if(tlt.alert.type==='bd') brk='<div class="tfc-brk" style="background:rgba(0,196,255,.15);color:var(--bear)">S割れ</div>';
         else if(tlt.alert.type==='bu') brk='<div class="tfc-brk" style="background:rgba(255,61,90,.15);color:var(--bull)">R抜け</div>';
       }
-      return '<div class="tfc '+cc+' '+ac+'" onclick="setTF(\''+t.key+'\');document.getElementById(\'tfSelect\').value=\''+t.key+'\'">'+
-        '<div class="tfc-lbl">'+t.lbl+'</div>'+
-        '<div class="tfc-ico" style="color:'+col+"'>"+ico+'</div>'+
-        '<div class="tfc-txt" style="color:'+col+"'>"+txt+'</div>'+
-        brk+'</div>';
+      return '<div class="tfc '+cc+' '+ac+'" onclick="setTF(\''+t.key+'\');document.getElementById(\'tfSelect\').value=\''+t.key+'\'">'
+        +'<div class="tfc-lbl">'+t.lbl+'</div>'
+        +'<div class="tfc-ico" style="color:'+col+'">'+ico+'</div>'
+        +'<div class="tfc-txt" style="color:'+col+'">'+txt+'</div>'
+        +brk+'</div>';
     }
 
     function maRow(l,isAbove){
