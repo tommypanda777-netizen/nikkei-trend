@@ -398,75 +398,149 @@ function bestTrendline(pts, n, atrVal, isRes) {
 }
 
 // ② 水平線：直近の重要な高値・安値
-function horizontalLevels(tf, atrVal) {
+function horizontalLevels(tf, atrVal, isDaily=false) {
   const n = tf.closes.length;
-  const {ph, pl} = pivots(tf, 5); // 少し広めのlookbackで重要な山谷
+  const lb = isDaily ? 10 : 5;
+  const {ph, pl} = pivots(tf, lb);
   const cur = tf.closes[n-1];
-  const tol = atrVal * 0.5;
+  const tol = atrVal * (isDaily ? 0.8 : 0.5);
 
-  // 現在値より上の最近の高値（レジスタンス）
-  const resH = ph.filter(p => p.price > cur + tol)
-    .sort((a,b) => Math.abs(a.price-cur) - Math.abs(b.price-cur))[0] || null;
+  // 日足の場合：同じ価格帯に複数回タッチされたものを優先
+  function findStrongLevel(pts, above) {
+    const candidates = pts.filter(p => above ? p.price > cur + tol : p.price < cur - tol);
+    if(!candidates.length) return null;
 
-  // 現在値より下の最近の安値（サポート）
-  const supL = pl.filter(p => p.price < cur - tol)
-    .sort((a,b) => Math.abs(a.price-cur) - Math.abs(b.price-cur))[0] || null;
+    if(isDaily) {
+      // 価格帯でグループ化してタッチ数が多いものを優先
+      const grouped = [];
+      candidates.forEach(p => {
+        const existing = grouped.find(g => Math.abs(g.price - p.price) < atrVal * 1.5);
+        if(existing) { existing.touches++; existing.price = (existing.price + p.price) / 2; }
+        else grouped.push({price: p.price, touches: 1});
+      });
+      // タッチ数が多い → 現在値に近い の順で優先
+      grouped.sort((a,b) => {
+        const scoreDiff = (b.touches - a.touches) * 2;
+        const distDiff = Math.abs(a.price - cur) - Math.abs(b.price - cur);
+        return scoreDiff + distDiff / atrVal;
+      });
+      return grouped[0]?.price || null;
+    } else {
+      return candidates.sort((a,b) => Math.abs(a.price-cur) - Math.abs(b.price-cur))[0]?.price || null;
+    }
+  }
 
   return {
-    hRes: resH ? resH.price : null,
-    hSup: supL ? supL.price : null,
+    hRes: findStrongLevel(ph, true),
+    hSup: findStrongLevel(pl, false),
   };
 }
 
 function trendlineAnalysis(tf, dailyTf=null) {
   if(!tf||tf.closes.length<10) return null;
   const a = atr(tf,10);
-  const {ph,pl} = pivots(tf,3);
   const n = tf.closes.length-1;
-  const cur = tf.closes[n];
+  const cur    = tf.closes[n];
+  const curH   = tf.highs[n];
+  const curL   = tf.lows[n];
+  // ① ダマシ回避：前足の終値も使って「定着」確認
+  const prev   = tf.closes[Math.max(0,n-1)];
+  const prev2  = tf.closes[Math.max(0,n-2)];
 
-  // ① 3点検証済みのトレンドライン
+  const isDaily = tf.closes.length >= 60;
+  const lb = isDaily ? 10 : (tf.closes.length <= 40 ? 8 : 3);
+  const {ph,pl} = pivots(tf, lb);
+
   const res = bestTrendline(ph, n, a, true);
   const sup = bestTrendline(pl, n, a, false);
+  const hLevels = horizontalLevels(tf, a, isDaily);
 
-  // ② 水平線
-  const hLevels = horizontalLevels(tf, a);
+  // ③ 前日高値・安値を水平線として追加
+  let prevDayH = null, prevDayL = null;
+  if(dailyTf && dailyTf.closes.length >= 2) {
+    const di = dailyTf.closes.length - 2; // 前日
+    prevDayH = dailyTf.highs[di];
+    prevDayL = dailyTf.lows[di];
+  } else if(isDaily && tf.closes.length >= 2) {
+    prevDayH = tf.highs[n-1];
+    prevDayL = tf.lows[n-1];
+  }
 
-  // ④ 日足ラインの引き継ぎ
   let dailyRes = null, dailySup = null;
   if(dailyTf && dailyTf !== tf) {
     const da = atr(dailyTf, 10);
-    const {ph:dph, pl:dpl} = pivots(dailyTf, 5);
+    const {ph:dph, pl:dpl} = pivots(dailyTf, 10);
     const dn = dailyTf.closes.length-1;
     dailyRes = bestTrendline(dph, dn, da, true);
     dailySup = bestTrendline(dpl, dn, da, false);
   }
 
-  const thr = a * 0.15;
+  const thr = a * (isDaily ? 0.3 : 0.15);
 
-  // ブレイク判定（トレンドライン・水平線どちらも）
+  // 全サポート・レジスタンス候補を統合
+  const supCandidates = [
+    sup ? {val:sup.val, touches:sup.touches||1, src:'TL'} : null,
+    hLevels.hSup ? {val:hLevels.hSup, touches:hLevels.hSupTouches||1, src:'H'} : null,
+    prevDayL ? {val:prevDayL, touches:1, src:'PD'} : null,
+  ].filter(v=>v && v.val < cur);
+
+  const resCandidates = [
+    res ? {val:res.val, touches:res.touches||1, src:'TL'} : null,
+    hLevels.hRes ? {val:hLevels.hRes, touches:hLevels.hResTouches||1, src:'H'} : null,
+    prevDayH ? {val:prevDayH, touches:1, src:'PD'} : null,
+  ].filter(v=>v && v.val > cur);
+
+  // 現在値に最も近いもの
+  const activeSup = supCandidates.sort((a,b)=>b.val-a.val)[0] || null;
+  const activeRes = resCandidates.sort((a,b)=>a.val-b.val)[0] || null;
+
+  function srcLabel(src){ return src==='PD'?'前日':src==='H'?'水平':'TL'; }
+  function touchLabel(t){ return t>=3?' ('+t+'タッチ)':t>=2?' ('+t+'タッチ)':''; }
+
+  // ① ダマシ回避：現在足 + 前足の両方がラインを割っていることを確認
   let alert = {type:'ok', icon:'✅', title:'ライン内側', sub:'ブレイクなし'};
 
-  const supVal  = sup ? sup.val : null;
-  const resVal  = res ? res.val : null;
-  const hSupVal = hLevels.hSup;
-  const hResVal = hLevels.hRes;
-
-  // 最も近い有効なサポート・レジスタンスを優先
-  const activeSup = [supVal, hSupVal].filter(v=>v!=null).sort((a,b)=>b-a)[0];
-  const activeRes = [resVal, hResVal].filter(v=>v!=null).sort((a,b)=>a-b)[0];
-
-  if(activeSup && cur < activeSup - thr){
-    alert={type:'bd',icon:'🔵',title:'サポート割れ！',sub:'S: '+Math.round(activeSup).toLocaleString()+' を下抜け'};
-  } else if(activeRes && cur > activeRes + thr){
-    alert={type:'bu',icon:'🔴',title:'レジスタンス突破！',sub:'R: '+Math.round(activeRes).toLocaleString()+' を上抜け'};
-  } else if(activeSup && Math.abs(cur-activeSup)<thr*2){
-    alert={type:'ok',icon:'⚠️',title:'サポート付近',sub:Math.round(activeSup).toLocaleString()+' 付近 監視中'};
-  } else if(activeRes && Math.abs(cur-activeRes)<thr*2){
-    alert={type:'ok',icon:'⚠️',title:'レジスタンス付近',sub:Math.round(activeRes).toLocaleString()+' 付近 監視中'};
+  if(activeSup) {
+    const sv = activeSup.val;
+    const confirmed = cur < sv - thr && prev < sv; // 2本連続でライン割れ
+    const approaching = Math.abs(cur-sv) < thr*2;
+    if(confirmed){
+      alert={type:'bd',icon:'🔵',
+        title:'サポート割れ確定！',
+        sub:'S: '+Math.round(sv).toLocaleString()+' ['+srcLabel(activeSup.src)+']'+touchLabel(activeSup.touches)};
+    } else if(cur < sv - thr && prev >= sv){
+      alert={type:'bd',icon:'⚠️',
+        title:'サポート割れ（確認中）',
+        sub:'S: '+Math.round(sv).toLocaleString()+' — 定着確認待ち'};
+    } else if(approaching){
+      alert={type:'ok',icon:'⚠️',
+        title:'サポート付近',
+        sub:Math.round(sv).toLocaleString()+' 付近 ['+srcLabel(activeSup.src)+']'};
+    }
   }
 
-  return {res, sup, hLevels, dailyRes, dailySup, alert, cur, atrVal:a};
+  if(alert.type==='ok' && activeRes) {
+    const rv = activeRes.val;
+    const confirmed = cur > rv + thr && prev > rv;
+    const approaching = Math.abs(cur-rv) < thr*2;
+    if(confirmed){
+      alert={type:'bu',icon:'🔴',
+        title:'レジスタンス突破確定！',
+        sub:'R: '+Math.round(rv).toLocaleString()+' ['+srcLabel(activeRes.src)+']'+touchLabel(activeRes.touches)};
+    } else if(cur > rv + thr && prev <= rv){
+      alert={type:'bu',icon:'⚠️',
+        title:'レジスタンス突破（確認中）',
+        sub:'R: '+Math.round(rv).toLocaleString()+' — 定着確認待ち'};
+    } else if(approaching){
+      alert={type:'ok',icon:'⚠️',
+        title:'レジスタンス付近',
+        sub:Math.round(rv).toLocaleString()+' 付近 ['+srcLabel(activeRes.src)+']'};
+    }
+  }
+
+  return {res, sup, hLevels, dailyRes, dailySup,
+          prevDayH, prevDayL, activeSup, activeRes,
+          alert, cur, atrVal:a};
 }
 
 function fibs(high,low){
@@ -646,6 +720,9 @@ function drawChart(id, tf, tl, label) {
     drawL(tl.sup,'#00c4ff',[4,3]);
     drawH(tl.hLevels?.hRes,'rgba(255,100,100,0.8)');
     drawH(tl.hLevels?.hSup,'rgba(100,200,255,0.8)');
+    // ③ 前日高値・安値（黄色点線）
+    if(tl.prevDayH) drawH(tl.prevDayH,'rgba(245,200,66,0.7)');
+    if(tl.prevDayL) drawH(tl.prevDayL,'rgba(245,200,66,0.7)');
     drawDailyL(tl.dailyRes,'#ff3d5a');
     drawDailyL(tl.dailySup,'#00c4ff');
     // current price
@@ -683,6 +760,18 @@ async function loadData() {
     const data = await fetchAll();
     clearInterval(timer);
     const {d1,h1,m15,m5,m30,tf4h,base}=data;
+
+    // VIX・ドル円・ダウを並列取得（失敗しても続行）
+    const [vixD, usdjpyD, dowD] = await Promise.allSettled([
+      yahoo('^VIX',  '1d', '5d'),
+      yahoo('USDJPY=X', '1d', '5d'),
+      yahoo('^DJI',  '1d', '5d'),
+    ]);
+    const vix    = vixD.value?.closes.at(-1)    || null;
+    const usdjpy = usdjpyD.value?.closes.at(-1)  || null;
+    const dow    = dowD.value?.closes.at(-1)     || null;
+    const dowChg = dowD.value ? (dowD.value.closes.at(-1)-dowD.value.closes.at(-2))/dowD.value.closes.at(-2)*100 : null;
+
     const inst=INST[BASE_INST]||INST['NKD=F'];
     const cur=base.closes.at(-1);
     const prev=base.closes.at(-2)||d1.closes.at(-2);
@@ -820,7 +909,42 @@ async function loadData() {
         '</div>'+
       '</div>'+
 
-      // MA lines
+      // Market sentiment panel
+      '<div class="panel">'+
+        '<div class="sec">マーケットセンチメント</div>'+
+        // VIX
+        (vix ? (()=>{
+          const lv = vix<15?'落ち着き':vix<20?'平常':vix<25?'やや警戒':vix<30?'警戒':vix<40?'恐怖':'極度の恐怖';
+          const col = vix<20?'var(--text)':vix<25?'var(--gold)':vix<30?'rgba(255,140,0,1)':'var(--bull)';
+          const pct2 = Math.min(100, vix/50*100);
+          return '<div style="margin-bottom:10px">'+
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
+              '<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">VIX 恐怖指数</div>'+
+              '<div style="font-family:var(--mono);font-size:13px;color:'+col+'">'+vix.toFixed(2)+' <span style="font-size:10px">'+lv+'</span></div>'+
+            '</div>'+
+            '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">'+
+              '<div style="height:100%;width:'+pct2+'%;background:linear-gradient(90deg,#27ae60,'+col+');border-radius:3px"></div>'+
+            '</div>'+
+            '<div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--dim);margin-top:2px">'+
+              '<span>0 落ち着き</span><span>20 平常</span><span>30 警戒</span><span>50+ 恐怖</span>'+
+            '</div>'+
+          '</div>';
+        })() : '') +
+        // ドル円・ダウ
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+          (usdjpy ? '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center">'+
+            '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:3px">ドル円</div>'+
+            '<div style="font-family:var(--mono);font-size:15px;color:#fff">'+usdjpy.toFixed(2)+'</div>'+
+          '</div>' : '') +
+          (dow ? '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center">'+
+            '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:3px">NYダウ</div>'+
+            '<div style="font-family:var(--mono);font-size:15px;color:#fff">'+Math.round(dow).toLocaleString()+'</div>'+
+            '<div style="font-family:var(--mono);font-size:10px;color:'+(dowChg>=0?'var(--bull)':'var(--bear)')+'">'+
+              (dowChg>=0?'+':'')+dowChg.toFixed(2)+'%</div>'+
+          '</div>' : '') +
+        '</div>'+
+      '</div>'+
+
       '<div class="panel">'+
         '<div class="sec">MAライン抵抗値（上値）</div>'+
         (maAbove.length?maAbove.map(l=>maRow(l,true)).join(''):'<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">なし</div>')+
