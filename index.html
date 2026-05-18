@@ -35,6 +35,7 @@ header{text-align:center;padding:14px 0 10px;border-bottom:1px solid var(--borde
 #lastUpdate{font-family:var(--mono);font-size:15px;color:var(--dim);}
 .upd-btn{background:transparent;border:1px solid var(--border);border-radius:4px;
   color:var(--dim);font-size:14px;padding:2px 10px;cursor:pointer;}
+select.upd-btn{color-scheme:dark;}
 
 /* TF SELECTOR */
 .tf-sel{display:flex;align-items:center;gap:8px;background:var(--surface);
@@ -61,8 +62,8 @@ header{text-align:center;padding:14px 0 10px;border-bottom:1px solid var(--borde
 .tfc{border-radius:5px;padding:8px 4px 6px;text-align:center;border:1px solid var(--border);
   background:var(--surface);cursor:pointer;}
 .tfc.active-tf{border-color:#fff;box-shadow:0 0 6px rgba(255,255,255,.3);}
-.tfc.cbull{background:rgba(255,61,90,.08);}
-.tfc.cbear{background:rgba(0,196,255,.08);}
+.tfc.cbull{background:rgba(255,61,90,.25);border-color:rgba(255,61,90,.5);}
+.tfc.cbear{background:rgba(0,196,255,.25);border-color:rgba(0,196,255,.5);}
 .tfc-lbl{font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:4px;}
 .tfc-ico{font-size:14px;font-weight:bold;line-height:1;}
 .tfc-txt{font-family:var(--mono);font-size:9px;margin-top:3px;opacity:.7;}
