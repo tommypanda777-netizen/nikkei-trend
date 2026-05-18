@@ -1,1075 +1,202 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>N225f トレンド予測システム</title>
-
+<title>トレンド予測</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="トレンド予測">
 <meta name="theme-color" content="#080c10">
 <link rel="apple-touch-icon" href="icon.jpg">
-<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;トレンド予測&quot;,&quot;short_name&quot;:&quot;トレンド予測&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#080c10&quot;,&quot;theme_color&quot;:&quot;#080c10&quot;}">
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #080c10;
-    --surface: #111820;
-    --surface2: #1a2535;
-    --border: #2e4460;
-    --bull: #ff3d5a;
-    --bear: #00c4ff;
-    --neutral: #6b7e95;
-    --gold: #f5c842;
-    --text: #e8eef5;
-    --text-dim: #8aa0b8;
-    --font-mono: 'Share Tech Mono', monospace;
-    --font-ja: 'Noto Sans JP', sans-serif;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-ja);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Grid background */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(0,196,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,196,255,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .container {
-    position: relative;
-    z-index: 1;
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 16px;
-  }
-
-  /* Header */
-  header {
-    text-align: center;
-    padding: 20px 0 16px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 20px;
-  }
-
-  .header-label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 4px;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-  }
-
-  header h1 {
-    font-family: var(--font-mono);
-    font-size: 22px;
-    color: #fff;
-    letter-spacing: 2px;
-  }
-
-  header h1 span {
-    color: var(--bear);
-  }
-
-  .last-update {
-    font-family: var(--font-mono);
-    font-size: 15px;
-    color: var(--text-dim);
-    margin-top: 6px;
-  }
-
-  .update-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 6px;
-    line-height: 1;
-  }
-
-  .update-row .last-update {
-    line-height: 1;
-    display: flex;
-    align-items: center;
-  }
-
-  .update-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    padding: 3px 10px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    line-height: 1;
-  }
-
-  .update-btn:hover {
-    border-color: var(--bear);
-    color: var(--bear);
-  }
-
-  .update-btn:active {
-    transform: scale(0.95);
-  }
-
-  /* Overall trend badge */
-  .trend-banner {
-    border-radius: 6px;
-    padding: 18px;
-    margin-bottom: 16px;
-    text-align: center;
-    border: 1px solid;
-    transition: all 0.5s ease;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .trend-banner::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0.06;
-    background: radial-gradient(circle at 50% 0%, currentColor, transparent 70%);
-  }
-
-  .trend-banner.bull {
-    border-color: var(--bull);
-    background: rgba(255,61,90,0.07);
-    color: var(--bull);
-  }
-  .trend-banner.bear {
-    border-color: var(--bear);
-    background: rgba(0,196,255,0.07);
-    color: var(--bear);
-  }
-  .trend-banner.mixed {
-    border-color: var(--gold);
-    background: rgba(245,200,66,0.05);
-    color: var(--gold);
-  }
-
-  .trend-label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 3px;
-    opacity: 0.7;
-    margin-bottom: 6px;
-  }
-
-  .trend-main {
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: 1px;
-  }
-
-  .trend-sub {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    opacity: 0.6;
-    margin-top: 4px;
-  }
-
-  /* Price card */
-  .price-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px;
-    margin-bottom: 16px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-
-  .price-item {
-    text-align: center;
-  }
-
-  .price-item-label {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    letter-spacing: 2px;
-    color: var(--text-dim);
-    margin-bottom: 4px;
-  }
-
-  .price-value {
-    font-family: var(--font-mono);
-    font-size: 20px;
-    color: #fff;
-  }
-
-  .price-value.up { color: var(--bull); }
-  .price-value.down { color: var(--bear); }
-
-  .price-change {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    margin-top: 2px;
-  }
-
-  /* Section title */
-  .section-title {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    letter-spacing: 3px;
-    color: var(--text-dim);
-    padding: 0 0 8px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 10px;
-  }
-
-  /* MTF Panel */
-  .mtf-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    margin-bottom: 16px;
-  }
-
-  .mtf-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(30,45,61,0.5);
-  }
-
-  .mtf-row:last-child { border-bottom: none; }
-
-  .mtf-tf {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    width: 60px;
-  }
-
-  .mtf-bar {
-    flex: 1;
-    margin: 0 10px;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .mtf-bar-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.8s ease, background 0.5s ease;
-  }
-
-  .mtf-status {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: bold;
-    width: 36px;
-    text-align: right;
-  }
-
-  .mtf-macd {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--text-dim);
-    width: 60px;
-    text-align: right;
-  }
-
-  .bull-text { color: var(--bull); }
-  .bear-text { color: var(--bear); }
-  .neutral-text { color: var(--neutral); }
-
-  /* Color dots */
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 5px;
-  }
-  .dot.bull { background: var(--bull); box-shadow: 0 0 6px var(--bull); }
-  .dot.bear { background: var(--bear); box-shadow: 0 0 6px var(--bear); }
-  .dot.neutral { background: var(--neutral); }
-
-  /* Fib panel */
-  .fib-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    margin-bottom: 16px;
-  }
-
-  .fib-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 5px 0;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    border-bottom: 1px solid rgba(30,45,61,0.4);
-  }
-
-  .fib-row:last-child { border-bottom: none; }
-
-  .fib-level {
-    color: var(--text-dim);
-    font-size: 10px;
-    width: 50px;
-  }
-
-  .fib-price {
-    font-size: 14px;
-    color: #fff;
-  }
-
-  .fib-tag {
-    font-size: 9px;
-    padding: 2px 6px;
-    border-radius: 3px;
-    letter-spacing: 1px;
-  }
-
-  .fib-tag.target { background: rgba(255,61,90,0.2); color: var(--bull); }
-  .fib-tag.support { background: rgba(0,196,255,0.2); color: var(--bear); }
-  .fib-tag.current { background: rgba(245,200,66,0.2); color: var(--gold); }
-  .fib-tag.resist { background: rgba(255,61,90,0.1); color: rgba(255,61,90,0.6); }
-
-  /* MACD Signal panel */
-  .signal-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    margin-bottom: 16px;
-  }
-
-  .signal-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .signal-item {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 10px;
-    text-align: center;
-  }
-
-  .signal-tf {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-    margin-bottom: 4px;
-  }
-
-  .signal-val {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: bold;
-  }
-
-  /* Score meter */
-  .score-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    margin-bottom: 16px;
-  }
-
-  .score-meter {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 10px;
-  }
-
-  .score-label {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--bear);
-    letter-spacing: 1px;
-    width: 30px;
-  }
-
-  .score-bar {
-    flex: 1;
-    height: 20px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .score-bar-bull {
-    position: absolute;
-    right: 50%;
-    top: 0;
-    height: 100%;
-    background: var(--bull);
-    transition: width 1s ease;
-    transform-origin: right;
-  }
-
-  .score-bar-bear {
-    position: absolute;
-    left: 50%;
-    top: 0;
-    height: 100%;
-    background: var(--bear);
-    transition: width 1s ease;
-  }
-
-  .score-center {
-    position: absolute;
-    left: 50%;
-    top: 0;
-    width: 2px;
-    height: 100%;
-    background: rgba(255,255,255,0.3);
-    transform: translateX(-50%);
-  }
-
-  .score-num {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--bull);
-    width: 30px;
-    text-align: right;
-    letter-spacing: 1px;
-  }
-
-  /* Refresh button */
-  .refresh-btn {
-    display: block;
-    width: 100%;
-    padding: 14px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 3px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin-bottom: 16px;
-  }
-
-  .refresh-btn:hover {
-    border-color: var(--bear);
-    color: var(--bear);
-    background: rgba(0,196,255,0.05);
-  }
-
-  .refresh-btn:active {
-    transform: scale(0.98);
-  }
-
-  /* Loading */
-  .loading {
-    text-align: center;
-    padding: 40px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-  }
-
-  .loading::after {
-    content: '';
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    background: var(--bear);
-    border-radius: 50%;
-    margin-left: 8px;
-    animation: blink 0.8s infinite;
-  }
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-
-  .error-msg {
-    background: rgba(255,61,90,0.1);
-    border: 1px solid rgba(255,61,90,0.3);
-    border-radius: 6px;
-    padding: 14px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--bull);
-    text-align: center;
-    margin-bottom: 16px;
-  }
-
-  /* Candle mini chart */
-  .mini-candles {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    height: 50px;
-    margin-top: 10px;
-    padding: 4px 0;
-  }
-
-  .candle-wrap {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: 100%;
-    justify-content: flex-end;
-    position: relative;
-  }
-
-  .candle-wick {
-    width: 1px;
-    background: rgba(255,255,255,0.3);
-    position: absolute;
-    top: 0;
-  }
-
-  .candle-body {
-    width: 60%;
-    border-radius: 1px;
-    min-height: 2px;
-  }
-
-  .candle-body.bull { background: var(--bull); }
-  .candle-body.bear { background: var(--bear); }
-
-  /* Footer */
-  footer {
-    text-align: center;
-    padding: 20px 0;
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-    border-top: 1px solid var(--border);
-  }
-
-  footer .disclaimer {
-    margin-top: 4px;
-    font-size: 8px;
-    opacity: 0.5;
-  }
-
-  /* Day prediction panel */
-  .day-pred-banner {
-    border-radius: 6px;
-    padding: 14px;
-    margin-bottom: 10px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    border: 1px solid var(--border);
-    background: var(--surface2);
-  }
-
-  .day-pred-side {
-    text-align: center;
-    padding: 10px 6px;
-    border-radius: 5px;
-  }
-
-  .day-pred-side.high-side {
-    background: rgba(255,61,90,0.08);
-    border: 1px solid rgba(255,61,90,0.25);
-  }
-
-  .day-pred-side.low-side {
-    background: rgba(0,196,255,0.08);
-    border: 1px solid rgba(0,196,255,0.25);
-  }
-
-  .day-pred-label {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    letter-spacing: 2px;
-    opacity: 0.6;
-    margin-bottom: 4px;
-  }
-
-  .day-pred-main {
-    font-family: var(--font-mono);
-    font-size: 22px;
-    font-weight: bold;
-    line-height: 1;
-  }
-
-  .day-pred-main.high { color: var(--bull); }
-  .day-pred-main.low  { color: var(--bear); }
-
-  .day-pred-sub {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    opacity: 0.5;
-    margin-top: 4px;
-  }
-
-  .day-pred-strong {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    margin-top: 5px;
-    opacity: 0.75;
-  }
-
-  .pred-method-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 6px;
-    margin-top: 10px;
-  }
-
-  .pred-method-item {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 8px 4px;
-    text-align: center;
-  }
-
-  .pred-method-name {
-    font-family: var(--font-mono);
-    font-size: 8px;
-    color: var(--text-dim);
-    letter-spacing: 1px;
-    margin-bottom: 5px;
-  }
-
-  .pred-method-h {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--bull);
-  }
-
-  .pred-method-l {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--bear);
-    margin-top: 2px;
-  }
-
-  .pivot-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 0;
-    border-bottom: 1px solid rgba(30,45,61,0.4);
-    font-family: var(--font-mono);
-    font-size: 11px;
-  }
-  .pivot-row:last-child { border-bottom: none; }
-  .pivot-label { color: var(--text-dim); font-size: 10px; width: 70px; }
-  .pivot-val { font-size: 13px; }
-  .pivot-dist {
-    font-size: 9px;
-    padding: 2px 6px;
-    border-radius: 3px;
-  }
-
-  /* Phoenix: 25MA乖離率パネル */
-  .deviation-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    margin-bottom: 16px;
-  }
-
-  .deviation-gauge {
-    margin: 12px 0 8px;
-    position: relative;
-  }
-
-  .deviation-track {
-    height: 10px;
-    background: var(--border);
-    border-radius: 5px;
-    position: relative;
-    overflow: visible;
-  }
-
-  .deviation-fill {
-    height: 100%;
-    border-radius: 5px;
-    transition: width 0.8s ease, background 0.5s;
-    position: absolute;
-    left: 50%;
-    transform-origin: left;
-  }
-
-  .deviation-fill.positive {
-    background: linear-gradient(90deg, rgba(255,61,90,0.4), var(--bull));
-  }
-  .deviation-fill.negative {
-    background: linear-gradient(270deg, rgba(0,196,255,0.4), var(--bear));
-    left: auto;
-    right: 50%;
-    transform-origin: right;
-  }
-
-  .deviation-center-mark {
-    position: absolute;
-    left: 50%;
-    top: -3px;
-    width: 2px;
-    height: 16px;
-    background: rgba(255,255,255,0.4);
-    transform: translateX(-50%);
-    border-radius: 1px;
-  }
-
-  .deviation-danger-mark {
-    position: absolute;
-    top: -2px;
-    width: 2px;
-    height: 14px;
-    background: rgba(245,200,66,0.6);
-    border-radius: 1px;
-  }
-
-  .deviation-big-value {
-    font-family: var(--font-mono);
-    font-size: 32px;
-    font-weight: bold;
-    text-align: center;
-    margin: 6px 0 2px;
-    line-height: 1;
-  }
-
-  .deviation-status-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 2px;
-    margin: 4px auto;
-  }
-
-  .dev-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    border-bottom: 1px solid rgba(30,45,61,0.4);
-  }
-  .dev-row:last-child { border-bottom: none; }
-  .dev-label { color: var(--text-dim); font-size: 10px; }
-
-  /* Phoenix: 変化日サイクルパネル */
-  .cycle-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    margin-bottom: 16px;
-  }
-
-  .cycle-timeline {
-    display: flex;
-    align-items: center;
-    margin: 14px 0 10px;
-    position: relative;
-  }
-
-  .cycle-track {
-    flex: 1;
-    height: 3px;
-    background: var(--border);
-    border-radius: 2px;
-    position: relative;
-  }
-
-  .cycle-progress {
-    height: 100%;
-    background: linear-gradient(90deg, var(--bear), var(--gold));
-    border-radius: 2px;
-    transition: width 1s ease;
-  }
-
-  .cycle-dot {
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 2px solid var(--bg);
-  }
-
-  .cycle-dot.past { background: var(--text-dim); }
-  .cycle-dot.next { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
-  .cycle-dot.now  { background: var(--bear); box-shadow: 0 0 8px var(--bear); animation: pulse 1.5s infinite; }
-
-  @keyframes pulse {
-    0%, 100% { box-shadow: 0 0 6px var(--bear); }
-    50% { box-shadow: 0 0 14px var(--bear); }
-  }
-
-  .cycle-label-row {
-    display: flex;
-    justify-content: space-between;
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--text-dim);
-    margin-top: 6px;
-  }
-
-  .cycle-countdown {
-    text-align: center;
-    margin: 10px 0;
-  }
-
-  .cycle-days-num {
-    font-family: var(--font-mono);
-    font-size: 36px;
-    font-weight: bold;
-    color: var(--gold);
-    line-height: 1;
-  }
-
-  .cycle-days-label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-    margin-top: 4px;
-  }
-
-  .cycle-history {
-    margin-top: 10px;
-  }
-
-  .cycle-hist-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 0;
-    border-bottom: 1px solid rgba(30,45,61,0.4);
-    font-family: var(--font-mono);
-    font-size: 11px;
-  }
-  .cycle-hist-row:last-child { border-bottom: none; }
-  .cycle-hist-date { color: var(--text-dim); font-size: 10px; }
-  .cycle-hist-interval { color: var(--gold); }
-  .cycle-hist-type { font-size: 9px; padding: 2px 6px; border-radius: 3px; }
-  .cycle-hist-type.high { background: rgba(255,61,90,0.15); color: var(--bull); }
-  .cycle-hist-type.low  { background: rgba(0,196,255,0.15); color: var(--bear); }
-
-
-  /* TF個別トレンドバー */
-  .tf-trend-bar {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    margin-bottom: 14px;
-  }
-
-  .tf-trend-cell {
-    border-radius: 5px;
-    padding: 8px 4px 6px;
-    text-align: center;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-  }
-
-  .tf-trend-cell.active-tf {
-    border-color: var(--bull);
-    box-shadow: 0 0 8px rgba(255,61,90,0.3);
-  }
-
-  .tf-trend-cell.cell-bull {
-    background: rgba(255,61,90,0.08);
-  }
-
-  .tf-trend-cell.cell-bear {
-    background: rgba(0,196,255,0.08);
-  }
-
-  .tf-trend-cell-label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--text-dim);
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-  }
-
-  .tf-trend-cell-status {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    font-weight: bold;
-    line-height: 1;
-  }
-
-  .tf-trend-cell-macd {
-    font-family: var(--font-mono);
-    font-size: 8px;
-    margin-top: 3px;
-    opacity: 0.6;
-  }
-
-  .tf-trend-cell-break {
-    font-family: var(--font-mono);
-    font-size: 8px;
-    margin-top: 2px;
-    padding: 1px 4px;
-    border-radius: 2px;
-  }
-
-  /* Trendline panel */
-  .tl-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    margin-bottom: 16px;
-  }
-
-  .tl-alert {
-    border-radius: 5px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border: 1px solid;
-    animation: fadeIn 0.4s ease;
-  }
-
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
-
-  .tl-alert.break-down {
-    border-color: var(--bear);
-    background: rgba(0,196,255,0.08);
-  }
-  .tl-alert.break-up {
-    border-color: var(--bull);
-    background: rgba(255,61,90,0.08);
-  }
-  .tl-alert.intact {
-    border-color: var(--border);
-    background: transparent;
-  }
-
-  .tl-alert-icon {
-    font-size: 20px;
-    flex-shrink: 0;
-  }
-
-  .tl-alert-body {}
-
-  .tl-alert-title {
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 2px;
-  }
-
-  .tl-alert-sub {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    opacity: 0.65;
-  }
-
-  .tl-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 7px 0;
-    border-bottom: 1px solid rgba(30,45,61,0.5);
-    font-family: var(--font-mono);
-    font-size: 11px;
-  }
-  .tl-row:last-child { border-bottom: none; }
-
-  .tl-row-label { color: var(--text-dim); font-size: 10px; }
-  .tl-row-val { color: #fff; }
-  .tl-row-status { font-size: 10px; padding: 2px 7px; border-radius: 3px; }
-  .tl-row-status.broken-down { background: rgba(0,196,255,0.15); color: var(--bear); }
-  .tl-row-status.broken-up   { background: rgba(255,61,90,0.15); color: var(--bull); }
-  .tl-row-status.holding     { background: rgba(74,86,104,0.2); color: var(--neutral); }
-
-  input[type="date"]:focus, select:focus {
-    outline: none;
-    border-color: var(--gold) !important;
-  }
-
-  /* Canvas chart */
-  .chart-wrap {
-    position: relative;
-    margin-top: 10px;
-    border-radius: 4px;
-    overflow: hidden;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-  }
-
-  canvas { display: block; width: 100%; }
-
-  /* タイムフレーム切替 */
-  .tf-selector {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 8px 12px;
-  }
+:root{
+  --bg:#080c10;--surface:#111820;--surface2:#1a2535;
+  --border:#2e4460;--bull:#ff3d5a;--bear:#00c4ff;
+  --gold:#f5c842;--text:#e8eef5;--dim:#8aa0b8;
+  --mono:'Share Tech Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100vh;}
+.wrap{max-width:480px;margin:0 auto;padding:12px;}
+
+/* HEADER */
+header{text-align:center;padding:14px 0 10px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+.hdr-sub{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:3px;margin-bottom:6px;}
+#instrumentSelect{
+  width:100%;background:transparent;border:none;color:#fff;
+  font-family:var(--mono);font-size:20px;font-weight:bold;
+  text-align:center;text-align-last:center;cursor:pointer;outline:none;
+  letter-spacing:2px;padding:4px 0;appearance:none;-webkit-appearance:none;
+}
+.update-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;}
+#lastUpdate{font-family:var(--mono);font-size:15px;color:var(--dim);}
+.upd-btn{background:transparent;border:1px solid var(--border);border-radius:4px;
+  color:var(--dim);font-size:14px;padding:2px 10px;cursor:pointer;}
+
+/* TF SELECTOR */
+.tf-sel{display:flex;align-items:center;gap:8px;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin-bottom:14px;}
+.tf-sel span{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:2px;white-space:nowrap;}
+#tfSelect{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:8px 10px;border-radius:4px;font-family:var(--mono);font-size:13px;cursor:pointer;outline:none;}
+
+/* PANELS */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:14px;}
+.sec{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:3px;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:10px;}
+
+/* TREND BANNER */
+.trend-banner{border-radius:6px;padding:16px;margin-bottom:14px;text-align:center;border:1px solid;position:relative;overflow:hidden;}
+.trend-banner.bull{border-color:var(--bull);background:rgba(255,61,90,.08);color:var(--bull);}
+.trend-banner.bear{border-color:var(--bear);background:rgba(0,196,255,.08);color:var(--bear);}
+.trend-banner.mixed{border-color:var(--gold);background:rgba(245,200,66,.05);color:var(--gold);}
+.trend-label{font-family:var(--mono);font-size:9px;letter-spacing:3px;opacity:.7;margin-bottom:4px;}
+.trend-main{font-size:24px;font-weight:700;}
+.trend-sub{font-family:var(--mono);font-size:11px;opacity:.6;margin-top:4px;}
+
+/* TF CELLS */
+.tf-cells{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px;}
+.tfc{border-radius:5px;padding:8px 4px 6px;text-align:center;border:1px solid var(--border);
+  background:var(--surface);cursor:pointer;}
+.tfc.active-tf{border-color:var(--bull);box-shadow:0 0 8px rgba(255,61,90,.3);}
+.tfc.cbull{background:rgba(255,61,90,.08);}
+.tfc.cbear{background:rgba(0,196,255,.08);}
+.tfc-lbl{font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:4px;}
+.tfc-ico{font-size:14px;font-weight:bold;line-height:1;}
+.tfc-txt{font-family:var(--mono);font-size:9px;margin-top:3px;opacity:.7;}
+.tfc-brk{font-family:var(--mono);font-size:8px;margin-top:2px;padding:1px 4px;border-radius:2px;}
+
+/* PRICE CARD */
+.price-card{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.pi{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center;}
+.pi-lbl{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:4px;}
+.pi-val{font-family:var(--mono);font-size:20px;font-weight:bold;}
+.pi-val.up{color:var(--bull);}
+.pi-val.dn{color:var(--bear);}
+.pi-sub{font-family:var(--mono);font-size:10px;margin-top:3px;}
+
+/* MA LINES */
+.ma-row{display:grid;grid-template-columns:60px 1fr 80px;align-items:center;
+  padding:6px 0;border-bottom:1px solid rgba(46,68,96,.5);font-family:var(--mono);font-size:11px;}
+.ma-row:last-child{border-bottom:none;}
+.ma-lbl{font-size:9px;color:var(--dim);}
+.ma-val{text-align:center;font-size:13px;color:#fff;}
+.ma-dist{text-align:right;font-size:9px;padding:2px 6px;border-radius:3px;}
+
+/* MTF STATUS */
+.mtf-row{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid rgba(46,68,96,.4);}
+.mtf-row:last-child{border-bottom:none;}
+.mtf-tf{font-family:var(--mono);font-size:11px;color:var(--dim);width:60px;}
+.mtf-bar{flex:1;margin:0 10px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.mtf-fill{height:100%;border-radius:2px;}
+.mtf-st{font-family:var(--mono);font-size:10px;font-weight:bold;width:36px;text-align:right;}
+.mtf-mc{font-family:var(--mono);font-size:9px;color:var(--dim);width:30px;text-align:right;}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;}
+.dot.b{background:var(--bull);box-shadow:0 0 5px var(--bull);}
+.dot.e{background:var(--bear);box-shadow:0 0 5px var(--bear);}
+.dot.n{background:var(--dim);}
+
+/* SCORE */
+.score-wrap{margin:10px 0 4px;display:flex;align-items:center;gap:8px;}
+.score-bar{flex:1;height:10px;background:var(--border);border-radius:5px;overflow:hidden;position:relative;}
+.score-bull{position:absolute;right:50%;top:0;height:100%;background:var(--bull);transform-origin:right;}
+.score-bear{position:absolute;left:50%;top:0;height:100%;background:var(--bear);}
+.score-mid{position:absolute;left:50%;top:-2px;width:2px;height:14px;background:rgba(255,255,255,.3);transform:translateX(-50%);}
+.score-lbl{font-family:var(--mono);font-size:9px;width:28px;}
+
+/* PIVOT TABLE */
+.pv-row{display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:11px;}
+.pv-row:last-child{border-bottom:none;}
+.pv-lbl{color:var(--dim);font-size:10px;width:100px;}
+.pv-val{font-size:13px;text-align:center;flex:1;}
+.pv-dist{font-size:9px;padding:2px 6px;border-radius:3px;}
+
+/* FIB */
+.fib-row{display:flex;align-items:center;justify-content:space-between;
+  padding:5px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:12px;}
+.fib-row:last-child{border-bottom:none;}
+.fib-lv{color:var(--dim);font-size:10px;width:50px;}
+.fib-pr{font-size:14px;color:#fff;}
+.fib-tag{font-size:9px;padding:2px 6px;border-radius:3px;}
+
+/* TRENDLINE ALERTS */
+.tl-alert{border-radius:5px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;border:1px solid;}
+.tl-alert.bd{border-color:var(--bear);background:rgba(0,196,255,.08);}
+.tl-alert.bu{border-color:var(--bull);background:rgba(255,61,90,.08);}
+.tl-alert.ok{border-color:var(--border);background:transparent;}
+.tl-ico{font-size:18px;flex-shrink:0;}
+.tl-ttl{font-size:13px;font-weight:700;margin-bottom:2px;}
+.tl-sub{font-family:var(--mono);font-size:10px;opacity:.65;}
+
+/* DEV PANEL */
+.dev-row{display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:11px;}
+.dev-row:last-child{border-bottom:none;}
+.dev-lbl{color:var(--dim);font-size:10px;}
+.dev-gauge{margin:10px 0 6px;position:relative;}
+.dev-track{height:10px;background:var(--border);border-radius:5px;position:relative;overflow:visible;}
+.dev-fill-p{height:100%;border-radius:5px;position:absolute;left:50%;background:linear-gradient(90deg,rgba(255,61,90,.4),var(--bull));}
+.dev-fill-n{height:100%;border-radius:5px;position:absolute;right:50%;background:linear-gradient(270deg,rgba(0,196,255,.4),var(--bear));}
+.dev-mid{position:absolute;left:50%;top:-3px;width:2px;height:16px;background:rgba(255,255,255,.4);transform:translateX(-50%);border-radius:1px;}
+.dev-big{font-family:var(--mono);font-size:30px;font-weight:bold;text-align:center;margin:6px 0 2px;line-height:1;cursor:pointer;}
+.dev-period{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:center;margin-bottom:2px;}
+
+/* CYCLE */
+.cyc-num{font-family:var(--mono);font-size:34px;font-weight:bold;text-align:center;line-height:1;}
+.cyc-lbl{font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;letter-spacing:2px;margin-top:3px;}
+.cyc-track{flex:1;height:3px;background:var(--border);border-radius:2px;position:relative;}
+.cyc-prog{height:100%;background:linear-gradient(90deg,var(--bear),var(--gold));border-radius:2px;}
+.cyc-dot{position:absolute;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;border:2px solid var(--bg);}
+.cyc-hist{display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:11px;}
+.cyc-hist:last-child{border-bottom:none;}
+
+/* CANVAS */
+.chart-wrap{border-radius:4px;overflow:hidden;background:var(--surface2);border:1px solid var(--border);margin-top:10px;}
+canvas{display:block;width:100%;}
+
+/* LOADING / ERROR */
+.loading{text-align:center;padding:40px;font-family:var(--mono);font-size:13px;color:var(--dim);letter-spacing:2px;}
+.err-box{background:rgba(255,61,90,.1);border:1px solid rgba(255,61,90,.3);border-radius:6px;
+  padding:14px;font-family:var(--mono);font-size:12px;color:var(--bull);text-align:center;margin-bottom:14px;}
+
+/* CYCLE INPUT */
+.cyc-input-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;}
+.cyc-input-row input,.cyc-input-row select{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:6px 8px;border-radius:4px;font-family:var(--mono);font-size:11px;}
+.cyc-input-row input{flex:1;min-width:120px;}
+.cyc-btn{background:rgba(245,200,66,.15);border:1px solid var(--gold);color:var(--gold);
+  padding:6px 12px;border-radius:4px;font-family:var(--mono);font-size:10px;cursor:pointer;white-space:nowrap;}
+.cyc-item{display:flex;justify-content:space-between;align-items:center;
+  padding:4px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:10px;}
+.cyc-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;padding:0 4px;}
+
+footer{text-align:center;padding:16px 0;font-family:var(--mono);font-size:9px;color:var(--dim);
+  letter-spacing:2px;border-top:1px solid var(--border);margin-top:4px;}
 </style>
 </head>
 <body>
-<div class="container">
+<div class="wrap">
   <header>
-    <div class="header-label">FUTURES ANALYSIS SYSTEM</div>
-    <select id="instrumentSelect" onchange="setInstrument(this.value)" style="width:100%;background:transparent;border:none;color:#fff;font-family:var(--font-mono);font-size:22px;font-weight:bold;text-align:center;cursor:pointer;outline:none;letter-spacing:2px;padding:4px 0;appearance:none;-webkit-appearance:none;text-align-last:center;-webkit-text-align-last:center">
-      <option value="NKD=F" style="background:#111820;font-size:14px">▼ 日経225先物</option>
-      <option value="1570.T" style="background:#111820;font-size:14px">▼ 1570 日経レバ</option>
-      <option value="1579.T" style="background:#111820;font-size:14px">▼ 1579 日経ETN</option>
+    <div class="hdr-sub">FUTURES ANALYSIS SYSTEM</div>
+    <select id="instrumentSelect" onchange="setInstrument(this.value)">
+      <option value="NKD=F">日経225先物</option>
+      <option value="1570.T">1570 日経レバ</option>
+      <option value="1579.T">1579 日経ETN</option>
     </select>
     <div class="update-row">
-      <div class="last-update" id="lastUpdate">更新中...</div>
-      <button class="update-btn" onclick="loadData()">↻</button>
+      <div id="lastUpdate" style="font-family:var(--mono);font-size:15px;color:var(--dim);">更新中...</div>
+      <button class="upd-btn" onclick="loadData()">↻</button>
     </div>
   </header>
 
-  <!-- タイムフレーム切替プルダウン -->
-  <div class="tf-selector">
-    <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:2px">BASE TF</span>
-    <select id="tfSelect" onchange="setBaseTF(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:4px;font-family:var(--font-mono);font-size:13px;cursor:pointer;outline:none">
+  <div class="tf-sel">
+    <span>BASE TF</span>
+    <select id="tfSelect" onchange="setTF(this.value)">
       <option value="5m">5分足</option>
       <option value="15m" selected>15分足</option>
       <option value="30m">30分足</option>
@@ -1079,1296 +206,704 @@
     </select>
   </div>
 
-  <div id="app">
-    <div class="loading">データ取得中</div>
-  </div>
+  <div id="app"><div class="loading">データ取得中...</div></div>
 
-
-  <footer>
-    N225 FUTURES ANALYSIS SYSTEM
-    <div class="disclaimer">※投資判断は自己責任で。このツールは参考情報です。</div>
+  <footer>N225 FUTURES ANALYSIS SYSTEM<br>
+    <span style="font-size:8px;opacity:.5">※投資判断は自己責任で。このツールは参考情報です。</span>
   </footer>
 </div>
 
 <script>
-// =============================================
-// ZERCH-style Multi-Timeframe Analysis System
-// =============================================
+'use strict';
 
-// =============================================
-// 銘柄・タイムフレーム切替
-// =============================================
-let BASE_TF = '15m';
-let BASE_INSTRUMENT = 'NKD=F';
+// ===== STATE =====
+let BASE_INST = 'NKD=F';
+let BASE_TF   = '15m';
 
-// 銘柄設定
-const INSTRUMENTS = {
-  'NKD=F':  { label: '日経225先物', symbols: ['NKD=F', '^N225'], weeklyStooq: '%5En225', maWarning: 7.0, unit: '円' },
-  '1570.T': { label: '1570 日経レバ', symbols: ['1570.T'], weeklyStooq: '1570.jp', maWarning: 14.0, unit: '円' },
-  '1579.T': { label: '1579 日経ETN',    symbols: ['1579.T'], weeklyStooq: '1579.jp', maWarning: 7.0,  unit: '円' },
+const INST = {
+  'NKD=F':  { label:'日経225先物', syms:['NKD=F','^N225'], warn:7 },
+  '1570.T': { label:'1570 日経レバ', syms:['1570.T'], warn:14 },
+  '1579.T': { label:'1579 日経ETN',  syms:['1579.T'], warn:7  },
 };
 
-function setInstrument(val) {
-  BASE_INSTRUMENT = val;
-  loadData();
-}
+function setInstrument(v){ BASE_INST=v; loadData(); }
+function setTF(v){ BASE_TF=v; loadData(); }
 
-function setBaseTF(tf) {
-  BASE_TF = tf;
-  loadData();
-}
-
-function getBaseTfData(tf, tf5m, tf15m, tf30m, tf1H, tf4H, tf1D) {
-  switch(tf) {
-    case '5m':  return tf5m  || tf15m || tf1D;
-    case '30m': return tf30m || tf15m || tf1D;
-    case '1h':  return tf1H  || tf1D;
-    case '4h':  return tf4H  || tf1D;
-    case '1d':  return tf1D;
-    default:    return tf15m || tf1D;
-  }
-}
-
-function getPrevLabel(tf) {
-  const map = { '5m':'5分前比','15m':'15分前比','30m':'30分前比','1h':'1時間前比','4h':'4時間前比','1d':'前営業日比' };
-  return map[tf] || '前足比';
-}
-
-
-// =============================================
-// データ取得 — corsproxy.io（Safari確認済み）
-// =============================================
-
-async function fetchViaCorsProxy(url) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 7000);
+// ===== FETCH =====
+async function yahoo(sym, interval, range) {
+  const url = 'https://query1.finance.yahoo.com/v8/finance/chart/'
+    + encodeURIComponent(sym)
+    + '?interval=' + interval + '&range=' + range + '&includePrePost=false';
+  const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
-    const res = await fetch(proxyUrl, { signal: controller.signal });
-    clearTimeout(timer);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  } catch(e) {
-    clearTimeout(timer);
-    throw e;
-  }
-}
-
-function extractTF(data) {
-  if (!data) return null;
-  try {
-    const q = data?.chart?.result?.[0]?.indicators?.quote?.[0];
+    const r = await fetch(proxy, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const q = j?.chart?.result?.[0]?.indicators?.quote?.[0];
     if (!q) return null;
-    const closes = (q.close || []).filter(v => v != null && !isNaN(v));
-    const highs  = (q.high  || []).filter(v => v != null && !isNaN(v));
-    const lows   = (q.low   || []).filter(v => v != null && !isNaN(v));
+    const closes = (q.close||[]).filter(v => v != null && !isNaN(v));
     if (closes.length < 2) return null;
-    const h = highs.length === closes.length ? highs : closes.map(c => c * 1.002);
-    const l = lows.length  === closes.length ? lows  : closes.map(c => c * 0.998);
-    return { closes, highs: h, lows: l, symbol: data._symbol || '?' };
-  } catch { return null; }
+    const highs = (q.high||[]).filter(v => v!=null && !isNaN(v));
+    const lows  = (q.low ||[]).filter(v => v!=null && !isNaN(v));
+    return {
+      closes,
+      highs: highs.length === closes.length ? highs : closes.map(c=>c*1.002),
+      lows:  lows.length  === closes.length ? lows  : closes.map(c=>c*0.998),
+      sym
+    };
+  } catch { clearTimeout(t); return null; }
 }
 
-function make4H(tf1H) {
-  if (!tf1H || tf1H.closes.length < 8) return tf1H;
-  const c = [], h = [], l = [];
-  for (let i = 0; i + 3 < tf1H.closes.length; i += 4) {
-    c.push(tf1H.closes[i+3]);
-    h.push(Math.max(...tf1H.highs.slice(i, i+4)));
-    l.push(Math.min(...tf1H.lows.slice(i, i+4)));
-  }
-  return { closes: c, highs: h, lows: l };
-}
-
-async function safeYahoo(sym, interval, range) {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=${interval}&range=${range}&includePrePost=false`;
-    const data = await fetchViaCorsProxy(url);
-    data._symbol = sym;
-    return data;
-  } catch { return null; }
-}
-
-async function fetchMarketData() {
-  const inst = INSTRUMENTS[BASE_INSTRUMENT] || INSTRUMENTS['NKD=F'];
-  const sym = inst.symbols[0];
-
-  // 全て独立して取得（1つが失敗しても他に影響しない）
-  const d1raw  = await safeYahoo(sym, '1d',  '6mo');
-  if (!d1raw) throw new Error('日足データを取得できませんでした。通信状況を確認してください。');
-
-  const h1raw  = await safeYahoo(sym, '1h',  '5d');
-  const m15raw = await safeYahoo(sym, '15m', '2d');
-  const m5raw  = await safeYahoo(sym, '5m',  '1d');
-  const m30raw = await safeYahoo(sym, '30m', '5d');
-
-  const tf1D  = extractTF(d1raw);
-  const tf1H  = extractTF(h1raw)  || tf1D;
-  const tf15m = extractTF(m15raw) || tf1H;
-  const tf5m  = extractTF(m5raw)  || tf15m;
-  const tf30m = extractTF(m30raw) || tf15m;
-  const tf4H  = make4H(tf1H) || tf1D;
-
-  return {
-    tf1D, tf1H, tf4H, tf15m, tf5m, tf30m, tfWk: null,
-    currentPrice: tf15m.closes.at(-1),
-    prevClose:    tf1D.closes.at(-2) || tf1D.closes.at(-1),
-  };
-}
-
-
-
-const CYCLE_KEY_BASE = 'n225_cycle_dates';
-function getCycleKey() { return `${CYCLE_KEY_BASE}_${BASE_INSTRUMENT}`; }
-function loadCycleDates() {
-  try { return JSON.parse(localStorage.getItem(getCycleKey()) || '[]'); } catch { return []; }
-}
-function saveCycleDates(arr) {
-  try { localStorage.setItem(getCycleKey(), JSON.stringify(arr)); } catch {}
-}
-
-// =============================================
-// TRENDLINE DETECTION ENGINE
-// =============================================
-
-// Find pivot highs/lows (local extrema)
-function findPivots(highs, lows, lookback = 3) {
-  const pivotHighs = [];
-  const pivotLows = [];
-  const n = highs.length;
-  for (let i = lookback; i < n - lookback; i++) {
-    let isHigh = true, isLow = true;
-    for (let j = i - lookback; j <= i + lookback; j++) {
-      if (j === i) continue;
-      if (highs[j] >= highs[i]) isHigh = false;
-      if (lows[j] <= lows[i]) isLow = false;
+async function fetchAll() {
+  const inst = INST[BASE_INST] || INST['NKD=F'];
+  const sym = inst.syms[0];
+  // 順番に取得（並列だとSafariで問題が出ることがある）
+  const d1  = await yahoo(sym,'1d','6mo');
+  if (!d1) throw new Error('日足データを取得できませんでした');
+  const h1  = await yahoo(sym,'1h','5d') || d1;
+  const m15 = await yahoo(sym,'15m','2d') || h1;
+  const m5  = await yahoo(sym,'5m','1d') || m15;
+  const m30 = await yahoo(sym,'30m','5d') || m15;
+  // 4H = 1H を4本まとめる
+  const tf4h = (() => {
+    if (h1.closes.length < 8) return h1;
+    const c=[],h=[],l=[];
+    for(let i=0;i+3<h1.closes.length;i+=4){
+      c.push(h1.closes[i+3]);
+      h.push(Math.max(...h1.highs.slice(i,i+4)));
+      l.push(Math.min(...h1.lows.slice(i,i+4)));
     }
-    if (isHigh) pivotHighs.push({ idx: i, price: highs[i] });
-    if (isLow)  pivotLows.push({ idx: i, price: lows[i] });
+    return {closes:c,highs:h,lows:l};
+  })();
+
+  const base = { '5m':m5,'15m':m15,'30m':m30,'1h':h1,'4h':tf4h,'1d':d1 }[BASE_TF] || m15;
+
+  return { d1, h1, m15, m5, m30, tf4h, base };
+}
+
+// ===== MATH =====
+function sma(arr, n) {
+  if (arr.length < n) return arr.at(-1);
+  return arr.slice(-n).reduce((a,b)=>a+b,0)/n;
+}
+
+function ema(arr, n) {
+  const k = 2/(n+1);
+  let e = arr[0];
+  for (let i=1;i<arr.length;i++) e = arr[i]*k + e*(1-k);
+  return e;
+}
+
+function atr(tf, n=14) {
+  const trs=[];
+  for(let i=1;i<tf.closes.length;i++){
+    trs.push(Math.max(
+      tf.highs[i]-tf.lows[i],
+      Math.abs(tf.highs[i]-tf.closes[i-1]),
+      Math.abs(tf.lows[i]-tf.closes[i-1])
+    ));
   }
-  return { pivotHighs, pivotLows };
+  if(!trs.length) return 0;
+  return trs.slice(-n).reduce((a,b)=>a+b,0)/Math.min(n,trs.length);
 }
 
-// Fit a trendline through two most recent pivots and project to current bar
-function projectTrendline(pivots, currentIdx) {
-  if (pivots.length < 2) return null;
-  const p1 = pivots[pivots.length - 2];
-  const p2 = pivots[pivots.length - 1];
-  if (p1.idx === p2.idx) return null;
-  const slope = (p2.price - p1.price) / (p2.idx - p1.idx);
-  const projected = p2.price + slope * (currentIdx - p2.idx);
-  return { p1, p2, slope, projected, isRising: slope > 0 };
+function analyzeTF(tf) {
+  if(!tf||tf.closes.length<5) return {bull:false,bear:false,macd:'--'};
+  const c=tf.closes, n=c.length;
+  const s5=sma(c,Math.min(5,n)), s20=sma(c,Math.min(20,n));
+  const e12=ema(c.slice(-26),12), e26=ema(c.slice(-26),26);
+  const macdVal=e12-e26;
+  const bull = c[n-1]>s5 && s5>s20 && macdVal>0;
+  const bear = c[n-1]<s5 && s5<s20 && macdVal<0;
+  return {bull,bear,macd:macdVal>0?'GC':'DC'};
 }
 
-// Check if current price broke through the trendline
-function checkBreak(currentClose, trendlineVal, isResistance, atr) {
-  const threshold = atr * 0.15; // 15% of ATR as noise filter
-  if (isResistance) {
-    // Resistance line (drawn through highs)
-    if (currentClose > trendlineVal + threshold) return 'break_up';
-    if (currentClose < trendlineVal - threshold * 2) return 'intact_below';
-    return 'near';
+function pivots(tf, lb=3) {
+  const {highs:H,lows:L} = tf, n=H.length;
+  const ph=[], pl=[];
+  for(let i=lb;i<n-lb;i++){
+    let ih=true,il=true;
+    for(let j=i-lb;j<=i+lb;j++){
+      if(j===i) continue;
+      if(H[j]>=H[i]) ih=false;
+      if(L[j]<=L[i]) il=false;
+    }
+    if(ih) ph.push({idx:i,price:H[i]});
+    if(il) pl.push({idx:i,price:L[i]});
+  }
+  return {ph,pl};
+}
+
+function trendlineAnalysis(tf) {
+  if(!tf||tf.closes.length<10) return null;
+  const a = atr(tf,10);
+  const {ph,pl} = pivots(tf,3);
+  const n = tf.closes.length-1;
+  const cur = tf.closes[n];
+
+  function project(pts) {
+    if(pts.length<2) return null;
+    const p1=pts[pts.length-2], p2=pts[pts.length-1];
+    if(p1.idx===p2.idx) return null;
+    const slope=(p2.price-p1.price)/(p2.idx-p1.idx);
+    return {p1,p2,slope,val:p2.price+slope*(n-p2.idx),rising:slope>0};
+  }
+
+  const res=project(ph), sup=project(pl);
+  const thr=a*0.15;
+
+  let alert={type:'ok',icon:'✅',title:'ライン内側',sub:'ブレイクなし'};
+  if(sup && cur < sup.val-thr){
+    alert={type:'bd',icon:'🔵',title:'サポート割れ！',sub:'S: '+Math.round(sup.val).toLocaleString()+' を下抜け'};
+  } else if(res && cur > res.val+thr){
+    alert={type:'bu',icon:'🔴',title:'レジスタンス突破！',sub:'R: '+Math.round(res.val).toLocaleString()+' を上抜け'};
+  } else if(sup && Math.abs(cur-sup.val)<thr*2){
+    alert={type:'ok',icon:'⚠️',title:'サポート付近',sub:Math.round(sup.val).toLocaleString()+' 付近 監視中'};
+  } else if(res && Math.abs(cur-res.val)<thr*2){
+    alert={type:'ok',icon:'⚠️',title:'レジスタンス付近',sub:Math.round(res.val).toLocaleString()+' 付近 監視中'};
+  }
+  return {res,sup,alert,cur};
+}
+
+function fibs(high,low){
+  const d=high-low;
+  return [
+    {lv:'100%',price:high,tag:'高値',cls:'target'},
+    {lv:'76.4%',price:high-d*.236,tag:'抵抗',cls:'resist'},
+    {lv:'61.8%',price:high-d*.382,tag:'抵抗',cls:'resist'},
+    {lv:'50.0%',price:high-d*.5,tag:'中間',cls:'mid'},
+    {lv:'38.2%',price:high-d*.618,tag:'サポ',cls:'sup'},
+    {lv:'23.6%',price:high-d*.764,tag:'サポ',cls:'sup'},
+    {lv:'0.0%',price:low,tag:'安値',cls:'sup'},
+  ];
+}
+
+function dayPrediction(d1, cur) {
+  const H=d1.highs, L=d1.lows, C=d1.closes, n=C.length;
+  const pH=H[n-2], pL=L[n-2], pC=C[n-2];
+  const piv=(pH+pL+pC)/3;
+  const ppR1=2*piv-pL, ppR2=piv+(pH-pL), ppS1=2*piv-pH, ppS2=piv-(pH-pL);
+  const rng=pH-pL;
+  const camR3=pC+rng*1.1/4, camS3=pC-rng*1.1/4;
+  const a5=atr(d1,5);
+  const aH=cur+a5*.8, aL=cur-a5*.8;
+  const predH=Math.round(((ppR1+camR3+aH)/3)/10)*10;
+  const predL=Math.round(((ppS1+camS3+aL)/3)/10)*10;
+  return {predH,predL,piv:Math.round(piv),ppR1:Math.round(ppR1),ppR2:Math.round(ppR2),ppS1:Math.round(ppS1),ppS2:Math.round(ppS2)};
+}
+
+function maDeviation(d1, warnPct) {
+  const C=d1.closes, n=C.length, cur=C[n-1];
+  const ma5=sma(C,5), ma13=n>=13?sma(C,13):null, ma25=sma(C,25), ma75=n>=75?sma(C,75):null;
+  const dev5=(cur-ma5)/ma5*100, dev13=ma13?(cur-ma13)/ma13*100:null;
+  const dev25=(cur-ma25)/ma25*100, dev75=ma75?(cur-ma75)/ma75*100:null;
+  const abs=Math.abs(dev25);
+  let status,color,bg,warn;
+  if(abs>=warnPct){
+    status=dev25>0?'🔴 上方過熱':'🔵 下方過熱';
+    color=dev25>0?'var(--bull)':'var(--bear)';
+    bg=dev25>0?'rgba(255,61,90,.15)':'rgba(0,196,255,.15)';
+    warn=dev25>0?'追い買い危険ゾーン':'追い売り危険ゾーン';
+  } else if(abs>=warnPct*.57){
+    status=dev25>0?'⚠️ 上方乖離注意':'⚠️ 下方乖離注意';
+    color='var(--gold)';bg='rgba(245,200,66,.1)';
+    warn=dev25>0?'上昇が続いているが過熱注意':'下落が続いているが底打ち意識';
   } else {
-    // Support line (drawn through lows)
-    if (currentClose < trendlineVal - threshold) return 'break_down';
-    if (currentClose > trendlineVal + threshold * 2) return 'intact_above';
-    return 'near';
+    status='✅ 正常範囲';color='var(--text)';bg='rgba(74,86,104,.15)';
+    warn='MAとの乖離は正常範囲内';
   }
+  return {cur,ma5,ma13,ma25,ma75,dev5,dev13,dev25,dev75,status,color,bg,warn,warnPct};
 }
 
-function analyzeTrendlines(closes, highs, lows) {
-  if (closes.length < 10) return null;
-  const atr = calcATR(highs, lows, closes, 10);
-  const { pivotHighs, pivotLows } = findPivots(highs, lows, 3);
-  const currentIdx = closes.length - 1;
-  const currentClose = closes[currentIdx];
+// ===== CYCLE DATES =====
+function cycleKey(){ return 'cyc_'+BASE_INST; }
+function loadCyc(){ try{ return JSON.parse(localStorage.getItem(cycleKey())||'[]'); }catch{ return []; } }
+function saveCyc(a){ try{ localStorage.setItem(cycleKey(),JSON.stringify(a)); }catch{} }
 
-  const resistLine = projectTrendline(pivotHighs, currentIdx);
-  const supportLine = projectTrendline(pivotLows, currentIdx);
+function calcCycle(d1, manual=[]) {
+  const n=d1.closes.length;
+  const {ph,pl}=pivots(d1,5);
+  const today=new Date(); today.setHours(0,0,0,0);
+  const turns=[];
+  ph.forEach(p=>turns.push({idx:p.idx,price:p.price,type:'high'}));
+  pl.forEach(p=>turns.push({idx:p.idx,price:p.price,type:'low'}));
+  turns.sort((a,b)=>a.idx-b.idx);
 
-  let resistStatus = null, supportStatus = null;
+  const future=[];
+  manual.forEach(e=>{
+    const d=new Date(e.date); d.setHours(0,0,0,0);
+    const diff=Math.round((d-today)/86400000);
+    if(diff>0){ future.push({date:d,days:diff,type:e.type}); }
+    else{
+      const ago=Math.abs(diff), idx=Math.max(0,n-1-ago);
+      turns.push({idx,price:d1.closes[Math.min(idx,n-1)],type:e.type,manual:true,dateStr:e.date});
+    }
+  });
+  turns.sort((a,b)=>a.idx-b.idx);
 
-  if (resistLine) {
-    resistStatus = checkBreak(currentClose, resistLine.projected, true, atr);
+  const intervals=[];
+  for(let i=1;i<turns.length;i++){
+    const d=turns[i].idx-turns[i-1].idx;
+    if(d>0&&d<60) intervals.push(d);
   }
-  if (supportLine) {
-    supportStatus = checkBreak(currentClose, supportLine.projected, false, atr);
-  }
+  const avg=intervals.length?Math.round(intervals.reduce((a,b)=>a+b,0)/intervals.length):20;
+  const last=turns[turns.length-1];
+  const sinceL=last?n-1-last.idx:0;
+  let toNext=Math.max(0,avg-sinceL);
+  let nextDate=new Date(today); nextDate.setDate(today.getDate()+toNext);
+  let nextManual=false;
 
-  // Determine overall trendline situation
-  let alert = null;
-  if (supportStatus === 'break_down') {
-    alert = {
-      type: 'break-down',
-      icon: '🔵',
-      title: 'サポートライン割れ！',
-      sub: `サポート: ${Math.round(supportLine.projected).toLocaleString()} を下抜け → 売りセオリーパターン`,
-    };
-  } else if (resistStatus === 'break_up') {
-    alert = {
-      type: 'break-up',
-      icon: '🔴',
-      title: 'レジスタンスライン突破！',
-      sub: `抵抗: ${Math.round(resistLine.projected).toLocaleString()} を上抜け → 買いセオリーパターン`,
-    };
-  } else if (supportStatus === 'near') {
-    alert = {
-      type: 'intact',
-      icon: '⚠️',
-      title: 'サポートライン付近',
-      sub: `${Math.round(supportLine.projected).toLocaleString()} 付近 — ブレイク監視中`,
-    };
-  } else if (resistStatus === 'near') {
-    alert = {
-      type: 'intact',
-      icon: '⚠️',
-      title: 'レジスタンスライン付近',
-      sub: `${Math.round(resistLine.projected).toLocaleString()} 付近 — ブレイク監視中`,
-    };
-  } else {
-    alert = {
-      type: 'intact',
-      icon: '✅',
-      title: 'トレンドライン内側',
-      sub: 'ブレイクなし — ライン保持中',
-    };
+  if(future.length){
+    future.sort((a,b)=>a.days-b.days);
+    toNext=future[0].days; nextDate=future[0].date; nextManual=true;
   }
 
-  return {
-    resistLine, supportLine,
-    resistStatus, supportStatus,
-    alert,
-    currentClose, atr,
-    closes, highs, lows,
-    pivotHighs, pivotLows
-  };
+  const hist=turns.slice(-6).map((t,i,arr)=>{
+    const intv=i>0?t.idx-arr[i-1].idx:null;
+    const ago=n-1-t.idx;
+    const d=new Date(today); d.setDate(today.getDate()-ago);
+    return {date:t.dateStr||((d.getMonth()+1)+'/'+d.getDate()),type:t.type,intv,price:Math.round(t.price),manual:t.manual};
+  });
+  const futHist=future.map(f=>({date:(f.date.getMonth()+1)+'/'+(f.date.getDate()),type:f.type,days:f.days,future:true}));
+
+  return {avg,sinceL,toNext,nextDate,near:toNext<=3,hist,futHist,nextManual};
 }
 
-// Draw chart with trendlines on canvas
-function drawChart(canvasId, tf, tl, label) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.offsetWidth;
-  const H = 120;
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
-  canvas.style.height = H + 'px';
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  const closes = tf.closes.slice(-40);
-  const highs  = tf.highs.slice(-40);
-  const lows   = tf.lows.slice(-40);
-  const n = closes.length;
-  const pad = { l: 6, r: 50, t: 10, b: 18 };
-  const cw = W - pad.l - pad.r;
-  const ch = H - pad.t - pad.b;
-
-  const allVals = [...highs, ...lows];
-  const minV = Math.min(...allVals);
-  const maxV = Math.max(...allVals);
-  const vRange = maxV - minV || 1;
-
-  const xOf = i => pad.l + (i / (n - 1)) * cw;
-  const yOf = v => pad.t + ch - ((v - minV) / vRange) * ch;
-
-  // Background
-  ctx.fillStyle = '#0d1117';
-  ctx.fillRect(0, 0, W, H);
-
-  // Grid lines
-  ctx.strokeStyle = 'rgba(30,45,61,0.5)';
-  ctx.lineWidth = 0.5;
-  for (let i = 0; i <= 3; i++) {
-    const y = pad.t + (ch / 3) * i;
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+// ===== CANVAS CHART =====
+function drawChart(id, tf, tl, label) {
+  const canvas=document.getElementById(id);
+  if(!canvas||!tf) return;
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.offsetWidth, H=120;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const closes=tf.closes.slice(-40), highs=tf.highs.slice(-40), lows=tf.lows.slice(-40);
+  const n=closes.length;
+  if(n<2) return;
+  const pad={l:6,r:54,t:10,b:16};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+  const minV=Math.min(...lows), maxV=Math.max(...highs), vr=maxV-minV||1;
+  const x=i=>pad.l+(i/(n-1))*cw;
+  const y=v=>pad.t+ch-((v-minV)/vr)*ch;
+  ctx.fillStyle='#1a2535'; ctx.fillRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='rgba(46,68,96,.4)'; ctx.lineWidth=.5;
+  for(let i=0;i<=3;i++){ const yy=pad.t+(ch/3)*i; ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke(); }
+  // candles
+  const bw=Math.max(1,cw/n-1);
+  for(let i=0;i<n;i++){
+    const open=i>0?closes[i-1]:closes[i], close=closes[i];
+    const bull=close>=open;
+    ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x(i),y(highs[i]));ctx.lineTo(x(i),y(lows[i]));ctx.stroke();
+    const y1=y(Math.max(open,close)), y2=y(Math.min(open,close));
+    ctx.fillRect(x(i)-bw/2,y1,bw,Math.max(1,y2-y1));
   }
-
-  // Candles
-  const barW = Math.max(1, cw / n - 1);
-  for (let i = 0; i < n; i++) {
-    const x = xOf(i);
-    const open = i > 0 ? closes[i-1] : closes[i];
-    const close = closes[i];
-    const high = highs[i];
-    const low = lows[i];
-    const bull = close >= open;
-    ctx.strokeStyle = ctx.fillStyle = bull ? '#ff3d5a' : '#00c4ff';
-    // Wick
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x, yOf(high));
-    ctx.lineTo(x, yOf(low));
-    ctx.stroke();
-    // Body
-    const y1 = yOf(Math.max(open, close));
-    const y2 = yOf(Math.min(open, close));
-    ctx.fillRect(x - barW/2, y1, barW, Math.max(1, y2 - y1));
-  }
-
-  // Draw trendlines
-  if (tl) {
-    const drawLine = (p1, p2, currentIdx, color, dash) => {
-      const startOffset = n - 1 - (closes.length - 1 - p1.idx);
-      const endOffset = n - 1;
-      const x1 = xOf(Math.max(0, startOffset));
-      const x2 = xOf(endOffset);
-      const slope = (p2.price - p1.price) / (p2.idx - p1.idx);
-      const projected = p2.price + slope * (currentIdx - p2.idx);
-      const y1 = yOf(p1.price + slope * (Math.max(0, startOffset) - (n - 1 - (closes.length - 1 - p1.idx))));
-      const y2 = yOf(projected);
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash(dash || []);
-      ctx.beginPath();
-      ctx.moveTo(x1, yOf(p1.price));
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-      // Price label on right
-      ctx.setLineDash([]);
-      ctx.fillStyle = color;
-      ctx.font = `bold 9px 'Share Tech Mono', monospace`;
-      ctx.fillText(Math.round(projected).toLocaleString(), W - pad.r + 3, y2 + 3);
+  // trendlines
+  if(tl){
+    const drawL=(line,color)=>{
+      if(!line) return;
+      const {p1,p2,val}=line;
+      const x1=x(Math.max(0,n-1-(tf.closes.length-1-p1.idx)));
+      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(x1,y(p1.price));ctx.lineTo(x(n-1),y(val));ctx.stroke();
+      ctx.setLineDash([]);ctx.fillStyle=color;ctx.font='bold 9px monospace';
+      ctx.fillText(Math.round(val).toLocaleString(),W-pad.r+2,y(val)+3);
       ctx.restore();
     };
-
-    if (tl.resistLine) drawLine(tl.resistLine.p1, tl.resistLine.p2, closes.length - 1, '#ff3d5a', [4, 3]);
-    if (tl.supportLine) drawLine(tl.supportLine.p1, tl.supportLine.p2, closes.length - 1, '#00c4ff', [4, 3]);
-
-    // Current price line
-    const cp = closes[closes.length - 1];
-    ctx.save();
-    ctx.strokeStyle = 'rgba(245,200,66,0.6)';
-    ctx.lineWidth = 0.8;
-    ctx.setLineDash([2, 3]);
-    ctx.beginPath();
-    ctx.moveTo(pad.l, yOf(cp));
-    ctx.lineTo(W - pad.r, yOf(cp));
-    ctx.stroke();
-    ctx.fillStyle = '#f5c842';
-    ctx.font = `bold 9px 'Share Tech Mono', monospace`;
-    ctx.fillText(Math.round(cp).toLocaleString(), W - pad.r + 3, yOf(cp) + 3);
+    drawL(tl.res,'#ff3d5a'); drawL(tl.sup,'#00c4ff');
+    // current price
+    const cp=closes[n-1];
+    ctx.save();ctx.strokeStyle='rgba(245,200,66,.6)';ctx.lineWidth=.8;ctx.setLineDash([2,3]);
+    ctx.beginPath();ctx.moveTo(pad.l,y(cp));ctx.lineTo(W-pad.r,y(cp));ctx.stroke();
+    ctx.setLineDash([]);ctx.fillStyle='#f5c842';ctx.font='bold 9px monospace';
+    ctx.fillText(Math.round(cp).toLocaleString(),W-pad.r+2,y(cp)+3);
     ctx.restore();
   }
-
-  // Label
-  ctx.fillStyle = 'rgba(74,96,112,0.8)';
-  ctx.font = `bold 9px 'Share Tech Mono', monospace`;
-  ctx.fillText(label, pad.l + 3, pad.t + 10);
+  ctx.fillStyle='rgba(139,160,184,.7)';ctx.font='bold 9px monospace';
+  ctx.fillText(label,pad.l+2,pad.t+10);
 }
 
-function calcEMA(closes, period) {
-  const k = 2 / (period + 1);
-  let ema = closes[0];
-  for (let i = 1; i < closes.length; i++) {
-    ema = closes[i] * k + ema * (1 - k);
-  }
-  return ema;
-}
-
-function calcMACD(closes) {
-  if (closes.length < 26) return { macd: 0, signal: 0, hist: 0, cross: 'FLAT' };
-  const ema12 = calcEMA(closes.slice(-12), 12);
-  const ema26 = calcEMA(closes.slice(-26), 26);
-  const macd = ema12 - ema26;
-  // simplified signal
-  const signal = calcEMA(closes.slice(-9).map((_, i, a) => {
-    const s = closes.slice(-26 + i);
-    const e12 = calcEMA(s.slice(-12), 12);
-    const e26 = calcEMA(s, 26);
-    return e12 - e26;
-  }), 9);
-  const hist = macd - signal;
-  const cross = macd > 0 ? (hist > 0 ? 'GC' : 'GC') : (hist < 0 ? 'DC' : 'DC');
-  return { macd, signal, hist, cross: macd > 0 ? 'GC' : 'DC' };
-}
-
-function calcSMA(closes, period) {
-  if (closes.length < period) return closes[closes.length - 1];
-  const slice = closes.slice(-period);
-  return slice.reduce((a, b) => a + b, 0) / period;
-}
-
-function calcATR(highs, lows, closes, period = 14) {
-  const trs = [];
-  for (let i = 1; i < closes.length; i++) {
-    trs.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i-1]), Math.abs(lows[i] - closes[i-1])));
-  }
-  return trs.slice(-period).reduce((a, b) => a + b, 0) / period;
-}
-
-function calcFibs(high, low) {
-  const diff = high - low;
-  return {
-    100: high,
-    764: high - diff * 0.236,
-    618: high - diff * 0.382,
-    500: high - diff * 0.5,
-    382: high - diff * 0.618,
-    236: high - diff * 0.764,
-    0: low
-  };
-}
-
-function analyzeTF(closes, highs, lows) {
-  if (!closes || closes.length < 5) return { bull: false, score: 0, macd: 'N/A' };
-  const close = closes[closes.length - 1];
-  const sma5 = calcSMA(closes, Math.min(5, closes.length));
-  const sma20 = calcSMA(closes, Math.min(20, closes.length));
-  const macdData = calcMACD(closes);
-  const bull = close > sma5 && sma5 > sma20 && macdData.macd > 0;
-  const bear = close < sma5 && sma5 < sma20 && macdData.macd < 0;
-  return {
-    bull,
-    bear,
-    macd: macdData.cross,
-    macdVal: macdData.macd,
-    close,
-    sma5,
-    sma20
-  };
-}
-
-// =============================================
-// PHOENIX: 25MA 乖離率分析
-// =============================================
-function calcMADeviation(closes, highs, lows, dangerThreshold = 7.0) {
-  const n = closes.length;
-  if (n < 25) return null;
-  const current = closes[n - 1];
-
-  const ma5  = calcSMA(closes, 5);
-  const ma13 = n >= 13 ? calcSMA(closes, 13) : null;
-  const ma25 = calcSMA(closes, 25);
-  const ma75 = n >= 75 ? calcSMA(closes, 75) : null;
-
-  const dev5  = ((current - ma5)  / ma5)  * 100;
-  const dev13 = ma13 ? ((current - ma13) / ma13) * 100 : null;
-  const dev25 = ((current - ma25) / ma25) * 100;
-  const dev75 = ma75 ? ((current - ma75) / ma75) * 100 : null;
-
-  const devHistory = [];
-  for (let i = Math.max(25, n - 20); i < n; i++) {
-    const slice = closes.slice(0, i + 1);
-    const ma = slice.slice(-25).reduce((a, b) => a + b, 0) / 25;
-    devHistory.push(((closes[i] - ma) / ma) * 100);
-  }
-  const maxDev = Math.max(...devHistory.map(Math.abs));
-
-  const cautionThreshold = dangerThreshold * 0.57; // 約4/7の比率で警戒ライン
-  let status, statusColor, statusBg, warning;
-
-  const absDev = Math.abs(dev25);
-  if (absDev >= dangerThreshold) {
-    status = dev25 > 0 ? '🔴 上方過熱' : '🔵 下方過熱';
-    statusColor = dev25 > 0 ? 'var(--bull)' : 'var(--bear)';
-    statusBg = dev25 > 0 ? 'rgba(255,61,90,0.15)' : 'rgba(0,196,255,0.15)';
-    warning = dev25 > 0 ? '追い買い危険ゾーン — 反落リスク高' : '追い売り危険ゾーン — 反発リスク高';
-  } else if (absDev >= cautionThreshold) {
-    status = dev25 > 0 ? '⚠️ 上方乖離注意' : '⚠️ 下方乖離注意';
-    statusColor = 'var(--gold)';
-    statusBg = 'rgba(245,200,66,0.1)';
-    warning = dev25 > 0 ? '上昇が続いているが過熱に注意' : '下落が続いているが底打ち意識';
-  } else {
-    status = '✅ 正常レンジ内';
-    statusColor = 'var(--text)';
-    statusBg = 'rgba(74,86,104,0.15)';
-    warning = 'MAとの乖離は正常範囲内';
-  }
-
-  return { current, ma5, ma13, ma25, ma75, dev5, dev13, dev25, dev75,
-           status, statusColor, statusBg, warning, dangerThreshold, maxDev };
-}
-
-// =============================================
-// PHOENIX: 変化日サイクル検出
-// =============================================
-function calcCycleDays(highs, lows, closes, timestamps, manualDates = []) {
-  const n = closes.length;
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  const { pivotHighs, pivotLows } = findPivots(highs, lows, 5);
-  const allTurns = [];
-  pivotHighs.forEach(p => allTurns.push({ idx: p.idx, price: p.price, type: 'high' }));
-  pivotLows.forEach(p  => allTurns.push({ idx: p.idx, price: p.price, type: 'low'  }));
-  allTurns.sort((a, b) => a.idx - b.idx);
-
-  // 手動入力：過去日付のみ allTurns に追加（未来日付は別扱い）
-  const futureManual = [];
-  manualDates.forEach(entry => {
-    const d = new Date(entry.date);
-    d.setHours(0,0,0,0);
-    const diffDays = Math.round((d - today) / 86400000);
-    if (diffDays > 0) {
-      // 未来日付 → 次の変化日候補として記録
-      futureManual.push({ date: d, daysFromNow: diffDays, type: entry.type });
-    } else {
-      // 過去日付 → allTurns に追加
-      const daysAgo = Math.abs(diffDays);
-      const idx = Math.max(0, n - 1 - daysAgo);
-      allTurns.push({ idx, price: closes[Math.min(idx, closes.length-1)] || closes[n-1],
-                      type: entry.type || 'manual', isManual: true, dateStr: entry.date });
-    }
-  });
-  allTurns.sort((a, b) => a.idx - b.idx);
-
-  const intervals = [];
-  for (let i = 1; i < allTurns.length; i++) {
-    const diff = allTurns[i].idx - allTurns[i-1].idx;
-    if (diff > 0 && diff < 60) intervals.push(diff); // 60日超は外れ値除外
-  }
-
-  const avgCycle = intervals.length > 0
-    ? Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length)
-    : 20;
-
-  const lastTurn = allTurns[allTurns.length - 1];
-  const daysSinceLast = lastTurn ? n - 1 - lastTurn.idx : 0;
-  let daysToNext = Math.max(0, avgCycle - daysSinceLast);
-
-  // 未来の手動変化日が登録されていれば、それを優先表示
-  let nextChangeDate = new Date(today);
-  nextChangeDate.setDate(today.getDate() + daysToNext);
-  let nextIsManual = false;
-
-  if (futureManual.length > 0) {
-    // 最も近い未来の変化日
-    futureManual.sort((a, b) => a.daysFromNow - b.daysFromNow);
-    const nearest = futureManual[0];
-    daysToNext = nearest.daysFromNow;
-    nextChangeDate = nearest.date;
-    nextIsManual = true;
-  }
-
-  const isNearChangeDay = daysToNext <= 3;
-
-  const history = allTurns.slice(-6).map((t, i, arr) => {
-    const interval = i > 0 ? t.idx - arr[i-1].idx : null;
-    const daysAgo  = n - 1 - t.idx;
-    const d = new Date(today);
-    d.setDate(today.getDate() - daysAgo);
-    return { date: t.dateStr || `${d.getMonth()+1}/${d.getDate()}`,
-             type: t.type, interval, price: Math.round(t.price), isManual: t.isManual };
-  });
-
-  // 未来の変化日も履歴的に表示
-  const futureHistory = futureManual.map(f => ({
-    date: `${f.date.getMonth()+1}/${f.date.getDate()}`,
-    type: f.type, interval: null, price: null, isManual: true, isFuture: true,
-    daysFromNow: f.daysFromNow
-  }));
-
-  return { avgCycle, daysSinceLast, daysToNext, nextChangeDate, isNearChangeDay,
-           lastTurn, history, futureHistory, nextIsManual, allTurns };
-}
+// ===== RENDER =====
+function h(str){ return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(v){ return Math.round(v).toLocaleString(); }
+function sign(v){ return v>=0?'+':''; }
+function pct(v){ return (v>0?'+':'')+v.toFixed(2)+'%'; }
 
 async function loadData() {
-  const app = document.getElementById('app');
-  app.innerHTML = '<div class="loading">データ取得中</div>';
+  const app=document.getElementById('app');
+  app.innerHTML='<div class="loading">データ取得中...</div>';
 
   try {
-    const mkt = await fetchMarketData();
-    const { tf1D, tf1H, tf4H, tf15m, tf5m, tf30m, tfWk } = mkt;
+    const data = await fetchAll();
+    const {d1,h1,m15,m5,m30,tf4h,base}=data;
+    const inst=INST[BASE_INST]||INST['NKD=F'];
+    const cur=base.closes.at(-1);
+    const prev=base.closes.at(-2)||d1.closes.at(-2);
+    const chg=cur-prev, chgP=chg/prev*100;
+    const prevLbl={'5m':'5分前比','15m':'15分前比','30m':'30分前比','1h':'1時間前比','4h':'4時間前比','1d':'前営業日比'}[BASE_TF]||'前足比';
 
-    if (!tf1D || tf1D.closes.length < 5) throw new Error('データが不足しています');
+    // analyses
+    const anD=analyzeTF(d1), an4=analyzeTF(tf4h), anH=analyzeTF(h1), an15=analyzeTF(m15), an5=analyzeTF(m5);
+    const analyses=[anD,an4,anH,an15];
+    const bullN=analyses.filter(a=>a.bull).length;
+    const bearN=analyses.filter(a=>a.bear).length;
 
-    const inst = INSTRUMENTS[BASE_INSTRUMENT] || INSTRUMENTS['NKD=F'];
-    const usedSymbol = BASE_INSTRUMENT;
-    const instLabel  = inst.label;
-    const maWarning  = inst.maWarning;
+    // overall trend
+    let oCls,oMain,oSub;
+    if(bullN>=3){oCls='bull';oMain='🔴 上方向優勢';oSub='赤が揃っています — 買い優勢';}
+    else if(bearN>=3){oCls='bear';oMain='🔵 下方向優勢';oSub='青が揃っています — 売り優勢';}
+    else{oCls='mixed';oMain='⚡ 混在・様子見';oSub='買い'+bullN+' / 売り'+bearN+' — 方向感なし';}
 
-    // 選択TFのデータをベースにする
-    const tfBase = getBaseTfData(BASE_TF, tf5m, tf15m, tf30m, tf1H, tf4H, tf1D);
-    const currentPrice = mkt.currentPrice || tfBase.closes[tfBase.closes.length - 1];
-    const prevClose    = mkt.prevClose    || tfBase.closes[tfBase.closes.length - 2];
-    const change    = currentPrice - prevClose;
-    const changePct = (change / prevClose) * 100;
-    const prevLabel = getPrevLabel(BASE_TF);
+    // trendlines
+    const tlBase=trendlineAnalysis(base);
+    const tlD=trendlineAnalysis(d1);
 
-    // ② ZERCH式 マルチタイムフレームMAライン（抵抗値）
-    function calcZerchLines(current, tfDay, tfH4, tfH1, tfM15, tfWeek) {
-      const lines = [];
-      const add = (price, label, color, tfName) => {
-        if (price && !isNaN(price) && price > 0) {
-          lines.push({ price: Math.round(price), label, color, tfName,
-            dist: price - current, distPct: ((price - current) / current * 100).toFixed(2) });
-        }
-      };
+    // MA lines
+    const maLines=[];
+    const addMA=(pr,lbl,tf)=>{ if(pr&&!isNaN(pr)&&pr>0) maLines.push({price:Math.round(pr),lbl,dist:pr-cur,distP:(pr-cur)/cur*100}); };
+    addMA(sma(d1.closes,5),'DMA/5');addMA(sma(d1.closes,25),'DMA/25');addMA(sma(d1.closes,75),'DMA/75');
+    addMA(sma(h1.closes,20),'1H/20');addMA(sma(h1.closes,50),'1H/50');
+    addMA(sma(tf4h.closes,20),'4H/20');addMA(sma(tf4h.closes,50),'4H/50');
+    maLines.sort((a,b)=>a.price-b.price);
+    const maAbove=maLines.filter(l=>l.price>cur).slice(0,5);
+    const maBelow=maLines.filter(l=>l.price<cur).slice(-5).reverse();
 
-      // 週足MA（1D-1W相当）
-      if (tfWeek) {
-        add(calcSMA(tfWeek.closes, 5),  'WMA/5',  '#ffffff', '1D-1W');
-        add(calcSMA(tfWeek.closes, 13), 'WMA/13', '#ffffff', '1D-1W');
-        add(calcSMA(tfWeek.closes, 26), 'WMA/26', '#ffffff', '1D-1W');
-      }
-      // 日足MA（4H-1D相当）
-      if (tfDay) {
-        add(calcSMA(tfDay.closes, 5),   'DMA/5',  '#ffffff', '4H-1D');
-        add(calcSMA(tfDay.closes, 25),  'DMA/25', '#ffffff', '4H-1D');
-        add(calcSMA(tfDay.closes, 75),  'DMA/75', '#ffffff', '4H-1D');
-      }
-      // 4H足MA（1H-4H相当）
-      if (tfH4) {
-        add(calcSMA(tfH4.closes, 20),  '4H/20', '#ffffff', '1H-4H');
-        add(calcSMA(tfH4.closes, 50),  '4H/50', '#ffffff', '1H-4H');
-      }
-      // 1H足MA（15m-1H相当）
-      if (tfH1) {
-        add(calcSMA(tfH1.closes, 20),  '1H/20', '#ffffff', '15m-1H');
-        add(calcSMA(tfH1.closes, 50),  '1H/50', '#ffffff', '15m-1H');
-      }
-      // 15m直近高値・安値（H1Line / H4Line相当）
-      if (tfM15) {
-        const recentH = Math.max(...tfM15.highs.slice(-16));
-        const recentL = Math.min(...tfM15.lows.slice(-16));
-        add(recentH, 'H1Line高値', '#ffffff', 'H1Line');
-        add(recentL, 'H1Line安値', '#ffffff', 'H1Line');
-      }
+    // fib
+    const rH=Math.max(...d1.highs.slice(-20)), rL=Math.min(...d1.lows.slice(-20));
+    const fibRows=fibs(rH,rL);
 
-      // 現在値から近い順にソートし上下に分類
-      lines.sort((a, b) => a.price - b.price);
-      const above = lines.filter(l => l.price > current).slice(0, 6);
-      const below = lines.filter(l => l.price < current).slice(-6).reverse();
-      return { above, below, all: lines };
-    }
+    // day prediction
+    const dp=dayPrediction(d1,cur);
 
-    const zerchLines = calcZerchLines(currentPrice, tf1D, tf4H, tf1H, tfBase, tfWk);
+    // deviation
+    const dev=maDeviation(d1,inst.warn);
 
-    const an1D  = analyzeTF(tf1D.closes,  tf1D.highs,  tf1D.lows);
-    const an4H  = analyzeTF(tf4H?.closes  || tf1D.closes.slice(-20), tf4H?.highs  || tf1D.highs, tf4H?.lows  || tf1D.lows);
-    const an1H  = analyzeTF(tf1H?.closes  || tf1D.closes.slice(-10), tf1H?.highs  || tf1D.highs, tf1H?.lows  || tf1D.lows);
-    const an15m = analyzeTF(tf15m.closes, tf15m.highs, tf15m.lows);
-    const an5m  = tf5m  ? analyzeTF(tf5m.closes,  tf5m.highs,  tf5m.lows)  : null;
-    const an30m = tf30m ? analyzeTF(tf30m.closes, tf30m.highs, tf30m.lows) : null;
+    // cycle
+    const manual=loadCyc();
+    const cyc=calcCycle(d1,manual);
 
-    // TFごとのトレンドライン状態も取得
-    const tlByTF = {
-      '5m':  tf5m  ? analyzeTrendlines(tf5m.closes,  tf5m.highs,  tf5m.lows)  : null,
-      '15m': analyzeTrendlines(tf15m.closes, tf15m.highs, tf15m.lows),
-      '30m': tf30m ? analyzeTrendlines(tf30m.closes, tf30m.highs, tf30m.lows) : null,
-      '1h':  tf1H  ? analyzeTrendlines(tf1H.closes,  tf1H.highs,  tf1H.lows)  : null,
-      '4h':  tf4H  ? analyzeTrendlines(tf4H.closes,  tf4H.highs,  tf4H.lows)  : null,
-      '1d':  analyzeTrendlines(tf1D.closes, tf1D.highs, tf1D.lows),
-    };
+    // score
+    const bPct=bullN/4*100, ePct=bearN/4*100;
 
-    // 表示する4TFを決定（選択TFを含む固定4つ）
-    const displayTFs = [
-      { key: '5m',  label: '5M',  an: an5m,  tl: tlByTF['5m']  },
-      { key: '15m', label: '15M', an: an15m, tl: tlByTF['15m'] },
-      { key: '1h',  label: '1H',  an: an1H,  tl: tlByTF['1h']  },
-      { key: '1d',  label: '1D',  an: an1D,  tl: tlByTF['1d']  },
+    // update time
+    const now=new Date();
+    document.getElementById('lastUpdate').textContent=
+      '更新: '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' JST';
+
+    // TF cells
+    const dispTF=[
+      {key:'5m',lbl:'5M',an:an5},
+      {key:'15m',lbl:'15M',an:an15},
+      {key:'1h',lbl:'1H',an:anH},
+      {key:'1d',lbl:'1D',an:anD},
     ];
 
-    // Count bull signals
-    const analyses = [an1D, an4H, an1H, an15m];
-    const bullCount = analyses.filter(a => a.bull).length;
-    const bearCount = analyses.filter(a => a.bear).length;
-
-    // Overall trend
-    let overallTrend, trendClass, trendSub;
-    if (bullCount >= 3) {
-      overallTrend = '🔴 上方向優勢';
-      trendClass = 'bull';
-      trendSub = '赤が揃っています — 買い優勢';
-    } else if (bearCount >= 3) {
-      overallTrend = '🔵 下方向優勢';
-      trendClass = 'bear';
-      trendSub = '青が揃っています — 売り優勢';
-    } else {
-      overallTrend = '⚡ 混在・様子見';
-      trendClass = 'mixed';
-      trendSub = `買い${bullCount} / 売り${bearCount} — 方向感なし`;
+    function tfCell(t){
+      if(!t.an) return '';
+      const bull=t.an.bull, bear=t.an.bear;
+      const active=BASE_TF===t.key;
+      const cc=bull?'cbull':bear?'cbear':'';
+      const ac=active?'active-tf':'';
+      const ico=bull?'🔴':bear?'🔵':'—';
+      const txt=bull?'上昇':bear?'下降':'中立';
+      const col=bull?'var(--bull)':bear?'var(--bear)':'var(--dim)';
+      // trendline break
+      const tlt=trendlineAnalysis({key:t.key,an:t.an,closes:
+        t.key==='1d'?d1.closes:t.key==='1h'?h1.closes:m15.closes,
+        highs:t.key==='1d'?d1.highs:t.key==='1h'?h1.highs:m15.highs,
+        lows:t.key==='1d'?d1.lows:t.key==='1h'?h1.lows:m15.lows});
+      let brk='';
+      if(tlt){
+        if(tlt.alert.type==='bd') brk='<div class="tfc-brk" style="background:rgba(0,196,255,.15);color:var(--bear)">S割れ</div>';
+        else if(tlt.alert.type==='bu') brk='<div class="tfc-brk" style="background:rgba(255,61,90,.15);color:var(--bull)">R抜け</div>';
+      }
+      return '<div class="tfc '+cc+' '+ac+'" onclick="setTF(\''+t.key+'\');document.getElementById(\'tfSelect\').value=\''+t.key+'\'">'+
+        '<div class="tfc-lbl">'+t.lbl+'</div>'+
+        '<div class="tfc-ico" style="color:'+col+'">'+ico+'</div>'+
+        '<div class="tfc-txt" style="color:'+col+'">'+txt+'</div>'+
+        brk+'</div>';
     }
 
-    // Fibonacci from recent swing
-    const recentHighs = tf1D.highs.slice(-20);
-    const recentLows = tf1D.lows.slice(-20);
-    const swingHigh = Math.max(...recentHighs);
-    const swingLow = Math.min(...recentLows);
-    const fibs = calcFibs(swingHigh, swingLow);
+    function maRow(l,isAbove){
+      const bg=isAbove?'rgba(255,61,90,.1)':'rgba(0,196,255,.1)';
+      const col=isAbove?'var(--bull)':'var(--bear)';
+      return '<div class="ma-row">'+
+        '<div class="ma-lbl">'+l.lbl+'</div>'+
+        '<div class="ma-val">'+fmt(l.price)+'</div>'+
+        '<div class="ma-dist" style="background:'+bg+';color:'+col+'">'+sign(l.dist)+fmt(l.dist)+' ('+l.distP.toFixed(2)+'%)</div>'+
+        '</div>';
+    }
 
-    // ATR for high prediction
-    const atr = calcATR(tf1D.highs, tf1D.lows, tf1D.closes);
-    const predHigh = Math.round((currentPrice + atr * 1.5) / 10) * 10;
-    const predLow = Math.round((currentPrice - atr * 1.5) / 10) * 10;
+    function tlAlertHTML(tl, tfLbl){
+      if(!tl) return '';
+      const a=tl.alert;
+      const col=a.type==='bd'?'var(--bear)':a.type==='bu'?'var(--bull)':'var(--text)';
+      return '<div class="tl-alert '+a.type+'">'+
+        '<div class="tl-ico">'+a.icon+'</div>'+
+        '<div><div class="tl-ttl" style="color:'+col+'">['+tfLbl+'] '+a.title+'</div>'+
+        '<div class="tl-sub">'+a.sub+'</div></div></div>';
+    }
 
-    // Recent candles for mini chart（選択TFベース）
-    const recentCandles = tfBase.closes.slice(-20).map((close, i, arr) => {
-      const open = i > 0 ? arr[i-1] : close;
-      return { open, close, bull: close > open };
+    // ===== RENDER HTML =====
+    app.innerHTML =
+
+      // Overall trend
+      '<div class="trend-banner '+oCls+'">'+
+        '<div class="trend-label">OVERALL TREND | '+inst.label+' / '+BASE_TF.toUpperCase()+'</div>'+
+        '<div class="trend-main">'+oMain+'</div>'+
+        '<div class="trend-sub">'+oSub+'</div>'+
+      '</div>'+
+
+      // TF cells
+      '<div class="tf-cells">'+dispTF.map(tfCell).join('')+'</div>'+
+
+      // Price card
+      '<div class="price-card">'+
+        '<div class="pi"><div class="pi-lbl">現在値</div>'+
+        '<div class="pi-val '+(chg>=0?'up':'dn')+'">'+fmt(cur)+'</div>'+
+        '<div class="pi-sub '+(chg>=0?'':'')+'">'+
+          '<span style="color:'+(chg>=0?'var(--bull)':'var(--bear)')+'">'+sign(chg)+fmt(chg)+' ('+pct(chgP)+')</span><br>'+
+          '<span style="font-size:9px;color:var(--dim)">'+prevLbl+'</span>'+
+        '</div></div>'+
+        '<div class="pi">'+
+          '<div class="pi-lbl">▲ 高値予測</div>'+
+          '<div style="font-family:var(--mono);font-size:16px;color:var(--bull)">'+fmt(dp.predH)+'</div>'+
+          '<div class="pi-lbl" style="margin-top:6px">▼ 安値予測</div>'+
+          '<div style="font-family:var(--mono);font-size:16px;color:var(--bear)">'+fmt(dp.predL)+'</div>'+
+        '</div>'+
+      '</div>'+
+
+      // MA lines
+      '<div class="panel">'+
+        '<div class="sec">MAライン抵抗値（上値）</div>'+
+        (maAbove.length?maAbove.map(l=>maRow(l,true)).join(''):'<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">なし</div>')+
+        '<div class="sec" style="margin-top:10px">MAライン抵抗値（下値）</div>'+
+        (maBelow.length?maBelow.map(l=>maRow(l,false)).join(''):'<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">なし</div>')+
+      '</div>'+
+
+      // MTF Status
+      '<div class="panel">'+
+        '<div class="sec">MULTI-TIMEFRAME STATUS</div>'+
+        [['日足 D',anD],['4時間 H4',an4],['1時間 H1',anH],['15分 M15',an15]].map(([lbl,an])=>{
+          const bull=an.bull,bear=an.bear;
+          const pct2=bull?75:bear?25:50;
+          const bc=bull?'var(--bull)':bear?'var(--bear)':'var(--dim)';
+          const dc=bull?'b':bear?'e':'n';
+          const st=bull?'赤':bear?'青':'中立';
+          const sc=bull?'var(--bull)':bear?'var(--bear)':'var(--dim)';
+          return '<div class="mtf-row">'+
+            '<div class="mtf-tf">'+lbl+'</div>'+
+            '<div class="mtf-bar"><div class="mtf-fill" style="width:'+pct2+'%;background:'+bc+'"></div></div>'+
+            '<div class="mtf-st" style="color:'+sc+'"><span class="dot '+dc+'"></span>'+st+'</div>'+
+            '<div class="mtf-mc" style="color:'+sc+'">'+an.macd+'</div>'+
+          '</div>';
+        }).join('')+
+        '<div style="margin-top:10px">'+
+          '<div class="score-wrap">'+
+            '<div class="score-lbl" style="color:var(--bear)">BEAR</div>'+
+            '<div class="score-bar">'+
+              '<div class="score-bull" style="width:'+bPct/2+'%"></div>'+
+              '<div class="score-bear" style="width:'+ePct/2+'%"></div>'+
+              '<div class="score-mid"></div>'+
+            '</div>'+
+            '<div class="score-lbl" style="color:var(--bull);text-align:right">BULL</div>'+
+          '</div>'+
+          '<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;margin-top:4px">'+
+            '買い '+bullN+'/4 | 売り '+bearN+'/4'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+
+      // Trendline alerts
+      '<div class="panel">'+
+        '<div class="sec">トレンドライン ブレイク検出</div>'+
+        tlAlertHTML(trendlineAnalysis(m15),'15m')+
+        tlAlertHTML(trendlineAnalysis(h1),'1H')+
+        tlAlertHTML(tlD,'D')+
+        '<div class="chart-wrap"><canvas id="ch15m"></canvas></div>'+
+        '<div class="chart-wrap" style="margin-top:8px"><canvas id="chD"></canvas></div>'+
+      '</div>'+
+
+      // Day prediction detail
+      '<div class="panel">'+
+        '<div class="sec">本日の高値・安値予測</div>'+
+        [['R2 (強抵抗)',dp.ppR2,dp.ppR2-cur,'var(--bull)'],
+         ['R1 (抵抗)',dp.ppR1,dp.ppR1-cur,'rgba(255,61,90,.7)'],
+         ['ピボット',dp.piv,dp.piv-cur,'var(--gold)'],
+         ['S1 (サポ)',dp.ppS1,dp.ppS1-cur,'rgba(0,196,255,.7)'],
+         ['S2 (強サポ)',dp.ppS2,dp.ppS2-cur,'var(--bear)']].map(([lbl,val,dist,col])=>
+          '<div class="pv-row">'+
+            '<div class="pv-lbl">'+lbl+'</div>'+
+            '<div class="pv-val" style="color:'+col+'">'+fmt(val)+'</div>'+
+            '<div class="pv-dist" style="background:'+(dist>0?'rgba(255,61,90,.1)':'rgba(0,196,255,.1)')+
+              ';color:'+(dist>0?'var(--bull)':'var(--bear)')+'">'+sign(dist)+fmt(dist)+'</div>'+
+          '</div>'
+        ).join('')+
+      '</div>'+
+
+      // Fibonacci
+      '<div class="panel">'+
+        '<div class="sec">フィボナッチ レジスタンス / サポート</div>'+
+        fibRows.map(f=>{
+          const near=Math.abs(f.price-cur)/cur<.005;
+          const colMap={target:'rgba(255,61,90,.2)/var(--bull)',resist:'rgba(255,61,90,.1)/rgba(255,61,90,.6)',
+            mid:'rgba(245,200,66,.2)/var(--gold)',sup:'rgba(0,196,255,.2)/var(--bear)'};
+          const [bg,col]=(colMap[f.cls]||'rgba(74,86,104,.2)/var(--dim)').split('/');
+          return '<div class="fib-row"'+(near?' style="background:rgba(245,200,66,.05)"':'')+'>'+
+            '<div class="fib-lv">'+f.lv+'</div>'+
+            '<div class="fib-pr">'+fmt(f.price)+'</div>'+
+            '<div class="fib-tag" style="background:'+bg+';color:'+col+'">'+f.tag+'</div>'+
+          '</div>';
+        }).join('')+
+      '</div>'+
+
+      // MA Deviation
+      '<div class="panel">'+
+        '<div class="sec">MA 乖離率</div>'+
+        '<div class="dev-period" id="devPeriod">25日MA</div>'+
+        '<div class="dev-big" id="devBig" style="color:'+(dev.dev25>0?'var(--bull)':'var(--bear)')+'">'+pct(dev.dev25)+'</div>'+
+        '<div style="text-align:center;margin:4px 0 8px"><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-family:var(--mono);font-size:10px;background:'+dev.bg+';color:'+dev.color+'">'+dev.status+'</span></div>'+
+        '<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;margin-bottom:8px">'+dev.warn+'</div>'+
+        '<div class="dev-gauge"><div class="dev-track">'+
+          '<div class="dev-fill-'+(dev.dev25>=0?'p':'n')+'" id="devFill" style="width:'+Math.min(50,Math.abs(dev.dev25)/dev.warnPct*42)+'%"></div>'+
+          '<div class="dev-mid"></div>'+
+        '</div></div>'+
+        '<div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--dim);margin:2px 2px 10px">'+
+          '<span style="color:var(--bear)">-'+dev.warnPct+'%</span><span>0</span><span style="color:var(--bull)">+'+dev.warnPct+'%</span>'+
+        '</div>'+
+        // MA rows
+        [['5日MA',dev.ma5,dev.dev5],['13日MA',dev.ma13,dev.dev13],['25日MA★',dev.ma25,dev.dev25],['75日MA',dev.ma75,dev.dev75]].map(([lbl,ma,dv])=>{
+          if(ma==null) return '';
+          return '<div class="dev-row" onclick="switchDev('+dv.toFixed(2)+',\''+lbl+'\')" style="cursor:pointer">'+
+            '<div class="dev-lbl">'+lbl+'</div>'+
+            '<div style="font-family:var(--mono);font-size:13px">'+fmt(ma)+'</div>'+
+            '<div style="font-family:var(--mono);font-size:11px;color:'+(dv>0?'var(--bull)':'var(--bear)')+'">'+pct(dv)+'</div>'+
+            '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-left:4px">▶</div>'+
+          '</div>';
+        }).join('')+
+        '<div class="dev-row"><div class="dev-lbl">⚠ 過熱ライン</div><div style="font-family:var(--mono);font-size:11px;color:var(--gold)">25MA ± '+dev.warnPct+'% 目安</div></div>'+
+      '</div>'+
+
+      // Cycle
+      '<div class="panel">'+
+        '<div class="sec">変化日サイクル</div>'+
+        '<div class="cyc-num" style="color:'+(cyc.toNext<=3?'var(--gold)':cyc.toNext<=7?'var(--text)':'var(--dim)')+'">'+cyc.toNext+'</div>'+
+        '<div class="cyc-lbl">日後に変化日</div>'+
+        '<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;margin-top:4px">'+
+          '予測: '+(cyc.nextDate.getMonth()+1)+'/'+(cyc.nextDate.getDate())+
+          ' | 平均サイクル: '+cyc.avg+'日'+
+        '</div>'+
+        (cyc.near?'<div class="tl-alert '+(cyc.toNext===0?'bu':'ok')+'" style="margin:10px 0">'+
+          '<div class="tl-ico">'+(cyc.toNext===0?'🔔':'⏰')+'</div>'+
+          '<div><div class="tl-ttl" style="color:var(--gold)">'+(cyc.toNext===0?'本日が変化日の可能性！':'変化日まで'+cyc.toNext+'日')+'</div>'+
+          '<div class="tl-sub">トレンド転換に注意</div></div></div>':'')+
+        // timeline
+        '<div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px">'+
+          '<div style="font-family:var(--mono);font-size:9px;color:var(--dim)">前回</div>'+
+          '<div class="cyc-track">'+
+            '<div class="cyc-prog" style="width:'+Math.min(100,cyc.sinceL/cyc.avg*100)+'%"></div>'+
+            '<div class="cyc-dot" style="left:0%;background:var(--dim)"></div>'+
+            '<div class="cyc-dot" style="left:'+Math.min(94,cyc.sinceL/cyc.avg*100)+'%;background:var(--bear);box-shadow:0 0 8px var(--bear)"></div>'+
+            '<div class="cyc-dot" style="left:100%;background:var(--gold);box-shadow:0 0 8px var(--gold)"></div>'+
+          '</div>'+
+          '<div style="font-family:var(--mono);font-size:9px;color:var(--gold)">次回</div>'+
+        '</div>'+
+        // history
+        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 6px">転換点 履歴</div>'+
+        cyc.hist.map(h=>'<div class="cyc-hist">'+
+          '<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">'+h.date+'</div>'+
+          '<div style="font-family:var(--mono);font-size:11px">'+h.price.toLocaleString()+'</div>'+
+          (h.intv?'<div style="font-family:var(--mono);font-size:10px;color:var(--gold)">+'+h.intv+'日</div>':'<div></div>')+
+          '<div style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:'+(h.type==='high'?'rgba(255,61,90,.15)':'rgba(0,196,255,.15)')+';color:'+(h.type==='high'?'var(--bull)':'var(--bear)')+'">'+
+            (h.manual?'📌 ':'')+(h.type==='high'?'🔴 高値':'🔵 安値')+'</div>'+
+        '</div>').join('')+
+        // future dates
+        (cyc.futHist.length?'<div style="margin:8px 0;padding:8px;background:rgba(245,200,66,.05);border:1px solid rgba(245,200,66,.2);border-radius:4px">'+
+          '<div style="font-family:var(--mono);font-size:9px;color:var(--gold);margin-bottom:6px">📌 登録済み未来の変化日</div>'+
+          cyc.futHist.map(f=>'<div class="cyc-hist">'+
+            '<div style="font-family:var(--mono);font-size:10px;color:var(--gold)">'+f.date+'</div>'+
+            '<div style="font-family:var(--mono);font-size:11px;color:var(--gold)">'+f.days+'日後</div>'+
+            '<div></div>'+
+            '<div style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:'+(f.type==='high'?'rgba(255,61,90,.15)':'rgba(0,196,255,.15)')+';color:'+(f.type==='high'?'var(--bull)':'var(--bear)')+'">'+
+              (f.type==='high'?'🔴 高値':'🔵 安値')+'</div>'+
+          '</div>').join('')+
+        '</div>':'')   +
+        // input
+        '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">'+
+          '<div style="font-family:var(--mono);font-size:9px;color:var(--gold);margin-bottom:8px">📌 変化日を手動登録</div>'+
+          '<div class="cyc-input-row">'+
+            '<input type="date" id="cycDate">'+
+            '<select id="cycType"><option value="high">🔴 高値転換</option><option value="low">🔵 安値転換</option></select>'+
+            '<button class="cyc-btn" onclick="addCyc()">追加</button>'+
+          '</div>'+
+          '<div id="cycList" style="margin-top:8px"></div>'+
+        '</div>'+
+      '</div>';
+
+    // draw charts
+    requestAnimationFrame(()=>{
+      drawChart('ch15m',m15,trendlineAnalysis(m15),'N225f '+BASE_TF.toUpperCase());
+      drawChart('chD',d1,tlD,'N225f D');
     });
-    const minC = Math.min(...tfBase.closes.slice(-20));
-    const maxC = Math.max(...tfBase.closes.slice(-20));
-    const range = maxC - minC || 1;
 
-    function tfRow(label, an, extra) {
-      const isBull = an.bull;
-      const isBear = an.bear;
-      const status = isBull ? '赤' : isBear ? '青' : '中立';
-      const cls = isBull ? 'bull-text' : isBear ? 'bear-text' : 'neutral-text';
-      const barPct = isBull ? 75 : isBear ? 25 : 50;
-      const barColor = isBull ? 'var(--bull)' : isBear ? 'var(--bear)' : 'var(--neutral)';
-      const dotCls = isBull ? 'bull' : isBear ? 'bear' : 'neutral';
-      return `
-        <div class="mtf-row">
-          <div class="mtf-tf">${label}</div>
-          <div class="mtf-bar">
-            <div class="mtf-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
-          </div>
-          <div class="mtf-status ${cls}"><span class="dot ${dotCls}"></span>${status}</div>
-          <div class="mtf-macd">${an.macd || '-'}</div>
-        </div>`;
-    }
-
-    function fibRow(level, price, tag, tagClass) {
-      const isNear = Math.abs(price - currentPrice) / currentPrice < 0.005;
-      return `
-        <div class="fib-row" style="${isNear ? 'background:rgba(245,200,66,0.05);' : ''}">
-          <div class="fib-level">${level}%</div>
-          <div class="fib-price">${Math.round(price).toLocaleString()}</div>
-          <div class="fib-tag ${tagClass}">${tag}</div>
-        </div>`;
-    }
-
-    // Trendline analysis per timeframe
-    const tl1D  = analyzeTrendlines(tf1D.closes, tf1D.highs, tf1D.lows);
-    const tlBase = analyzeTrendlines(tfBase.closes, tfBase.highs, tfBase.lows);
-    const tl1H  = tf1H ? analyzeTrendlines(tf1H.closes, tf1H.highs, tf1H.lows) : null;
-
-    function tlAlertHTML(tl, tfLabel) {
-      if (!tl) return '';
-      const a = tl.alert;
-      return `<div class="tl-alert ${a.type}">
-        <div class="tl-alert-icon">${a.icon}</div>
-        <div class="tl-alert-body">
-          <div class="tl-alert-title" style="color:${a.type==='break-down'?'var(--bear)':a.type==='break-up'?'var(--bull)':'var(--text)'}">[${tfLabel}] ${a.title}</div>
-          <div class="tl-alert-sub">${a.sub}</div>
-        </div>
-      </div>`;
-    }
-
-    function tlDetailRow(label, tl, isResist) {
-      if (!tl) return '';
-      const line = isResist ? tl.resistLine : tl.supportLine;
-      const status = isResist ? tl.resistStatus : tl.supportStatus;
-      if (!line) return '';
-      const statusLabel = status === 'break_down' ? '下抜け' : status === 'break_up' ? '上抜け' : status === 'near' ? '付近' : '保持';
-      const statusCls = status === 'break_down' ? 'broken-down' : status === 'break_up' ? 'broken-up' : 'holding';
-      const dir = line.isRising ? '↗ 上昇' : '↘ 下降';
-      return `<div class="tl-row">
-        <div class="tl-row-label">${label}</div>
-        <div class="tl-row-val">${Math.round(line.projected).toLocaleString()} <span style="font-size:9px;color:var(--text-dim)">${dir}</span></div>
-        <div class="tl-row-status ${statusCls}">${statusLabel}</div>
-      </div>`;
-    }
-
-    // =============================================
-    // 当日高値・安値予測（3手法の平均）
-    // =============================================
-    function calcDayPrediction(d1Data) {
-      const h = d1Data.highs;
-      const l = d1Data.lows;
-      const c = d1Data.closes;
-      const n = c.length;
-
-      // 前日OHLC
-      const prevH = h[n - 2];
-      const prevL = l[n - 2];
-      const prevC = c[n - 2];
-      const todayOpen = c[n - 1]; // 当日始値の代わりに前日終値使用
-
-      // ① クラシック ピボットポイント
-      const pivot = (prevH + prevL + prevC) / 3;
-      const ppR1 = 2 * pivot - prevL;
-      const ppR2 = pivot + (prevH - prevL);
-      const ppS1 = 2 * pivot - prevH;
-      const ppS2 = pivot - (prevH - prevL);
-
-      // ② Camarilla ピボット（高精度）
-      const range = prevH - prevL;
-      const camR3 = prevC + range * 1.1 / 4;
-      const camR4 = prevC + range * 1.1 / 2;
-      const camS3 = prevC - range * 1.1 / 4;
-      const camS4 = prevC - range * 1.1 / 2;
-
-      // ③ ATRベース予測
-      const atrVal = calcATR(h, l, c, 5);
-      const atrHigh = currentPrice + atrVal * 0.8;
-      const atrLow  = currentPrice - atrVal * 0.8;
-
-      // 3手法の平均で高値・安値を予測
-      const predHighAvg = Math.round(((ppR1 + camR3 + atrHigh) / 3) / 10) * 10;
-      const predLowAvg  = Math.round(((ppS1 + camS3 + atrLow)  / 3) / 10) * 10;
-
-      // 強気シナリオ（R2/R4）
-      const predHighStrong = Math.round(((ppR2 + camR4) / 2) / 10) * 10;
-      const predLowStrong  = Math.round(((ppS2 + camS4) / 2) / 10) * 10;
-
-      return {
-        pivot: Math.round(pivot),
-        ppR1: Math.round(ppR1), ppR2: Math.round(ppR2),
-        ppS1: Math.round(ppS1), ppS2: Math.round(ppS2),
-        camR3: Math.round(camR3), camR4: Math.round(camR4),
-        camS3: Math.round(camS3), camS4: Math.round(camS4),
-        atrHigh: Math.round(atrHigh), atrLow: Math.round(atrLow),
-        predHighAvg, predLowAvg,
-        predHighStrong, predLowStrong,
-        atrVal: Math.round(atrVal),
-      };
-    }
-
-    const dayPred = calcDayPrediction(tf1D);
-
-    // Phoenix: 25MA乖離率
-    const maDev = calcMADeviation(tf1D.closes, tf1D.highs, tf1D.lows, maWarning);
-
-    // Phoenix: 変化日サイクル（手動入力日付を統合）
-    const manualDates = loadCycleDates();
-    const cycle = calcCycleDays(tf1D.highs, tf1D.lows, tf1D.closes, null, manualDates);
-
-    // Score
-    const bullPct = (bullCount / 4) * 100;
-    const bearPct = (bearCount / 4) * 100;
-
-    const now = new Date();
-    document.getElementById('lastUpdate').textContent =
-      `更新: ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} JST`;
-
-    // Mini candles HTML
-    const candlesHTML = recentCandles.map(c => {
-      const h = Math.max(2, Math.round(((c.close - minC) / range) * 40));
-      return `<div class="candle-wrap" style="height:${h}px">
-        <div class="candle-body ${c.bull ? 'bull' : 'bear'}" style="height:${h}px"></div>
-      </div>`;
-    }).join('');
-
-    app.innerHTML = `
-      <div class="trend-banner ${trendClass}">
-        <div class="trend-label">OVERALL TREND &nbsp;|&nbsp; <span style="font-size:9px;opacity:0.6">${instLabel} / ${usedSymbol} / ${BASE_TF.toUpperCase()}</span></div>
-        <div class="trend-main">${overallTrend}</div>
-        <div class="trend-sub">${trendSub}</div>
-      </div>
-
-      <div class="tf-trend-bar">
-        ${displayTFs.map(t => {
-          if (!t.an) return '';
-          const isBull = t.an.bull;
-          const isBear = t.an.bear;
-          const isActive = BASE_TF === t.key;
-          const cellClass = isBull ? 'cell-bull' : isBear ? 'cell-bear' : '';
-          const activeClass = isActive ? 'active-tf' : '';
-          const statusText = isBull ? '🔴' : isBear ? '🔵' : '—';
-          const statusLabel = isBull ? '上昇' : isBear ? '下降' : '中立';
-          const statusColor = isBull ? 'var(--bull)' : isBear ? 'var(--bear)' : 'var(--text-dim)';
-          // トレンドラインブレイク状態
-          let breakText = '';
-          if (t.tl) {
-            if (t.tl.supportStatus === 'break_down') breakText = '<div class="tf-trend-cell-break" style="background:rgba(0,196,255,0.15);color:var(--bear)">S割れ</div>';
-            else if (t.tl.resistStatus === 'break_up') breakText = '<div class="tf-trend-cell-break" style="background:rgba(255,61,90,0.15);color:var(--bull)">R抜け</div>';
-          }
-          return \`<div class="tf-trend-cell \${cellClass} \${activeClass}" onclick="setBaseTF('\${t.key}');document.getElementById('tfSelect').value='\${t.key}'">
-            <div class="tf-trend-cell-label">\${t.label}</div>
-            <div class="tf-trend-cell-status" style="color:\${statusColor}">\${statusText}</div>
-            <div class="tf-trend-cell-macd" style="color:\${statusColor}">\${statusLabel}</div>
-            \${breakText}
-          </div>\`;
-        }).join('')}
-      </div>
-
-      <div class="price-card">
-        <div class="price-item">
-          <div class="price-item-label">現在値</div>
-          <div class="price-value ${change >= 0 ? 'up' : 'down'}">${Math.round(currentPrice).toLocaleString()}</div>
-          <div class="price-change ${change >= 0 ? 'bull-text' : 'bear-text'}">
-            ${change >= 0 ? '+' : ''}${Math.round(change)} (${changePct.toFixed(2)}%)<br>
-            <span style="font-size:8px;opacity:0.5">${prevLabel}</span>
-          </div>
-        </div>
-        <div class="price-item">
-          <div class="price-item-label">ATR予測レンジ</div>
-          <div style="font-family:var(--font-mono);font-size:12px;color:var(--bull)">▲ ${predHigh.toLocaleString()}</div>
-          <div style="font-family:var(--font-mono);font-size:12px;color:var(--bear);margin-top:4px">▼ ${predLow.toLocaleString()}</div>
-        </div>
-      </div>
-
-      <div class="tl-panel">
-        <div class="section-title">MAライン抵抗値（上値）</div>
-        ${zerchLines.above.length ? zerchLines.above.map(l => `
-          <div class="pivot-row">
-            <div class="pivot-label" style="color:${l.color};font-size:9px">${l.tfName}</div>
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim)">${l.label}</div>
-            <div class="pivot-val" style="color:${l.color}">${l.price.toLocaleString()}</div>
-            <div class="pivot-dist" style="background:rgba(255,61,90,0.1);color:var(--bull)">+${Math.round(l.dist)} (${l.distPct}%)</div>
-          </div>`).join('') : '<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);padding:6px 0">データなし</div>'}
-        <div class="section-title" style="margin-top:10px">MAライン抵抗値（下値）</div>
-        ${zerchLines.below.length ? zerchLines.below.map(l => `
-          <div class="pivot-row">
-            <div class="pivot-label" style="color:${l.color};font-size:9px">${l.tfName}</div>
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim)">${l.label}</div>
-            <div class="pivot-val" style="color:${l.color}">${l.price.toLocaleString()}</div>
-            <div class="pivot-dist" style="background:rgba(0,196,255,0.1);color:var(--bear)">${Math.round(l.dist)} (${l.distPct}%)</div>
-          </div>`).join('') : '<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);padding:6px 0">データなし</div>'}
-        <div style="font-family:var(--font-mono);font-size:8px;color:var(--text-dim);margin-top:8px;text-align:center">
-          週足${tfWk ? tfWk.closes.length+'本' : 'なし'} / 日足${tf1D.closes.length}本 / 4H${tf4H?.closes.length||0}本 / 1H${tf1H?.closes.length||0}本
-        </div>
-      </div>
-
-      <div class="tl-panel">
-        <div class="section-title">本日の高値・安値予測</div>
-        <div class="day-pred-banner">
-          <div class="day-pred-side high-side">
-            <div class="day-pred-label">▲ 高値予測</div>
-            <div class="day-pred-main high">${dayPred.predHighAvg.toLocaleString()}</div>
-            <div class="day-pred-sub">3手法平均</div>
-            <div class="day-pred-strong" style="color:var(--bull)">強気: ${dayPred.predHighStrong.toLocaleString()}</div>
-          </div>
-          <div class="day-pred-side low-side">
-            <div class="day-pred-label">▼ 安値予測</div>
-            <div class="day-pred-main low">${dayPred.predLowAvg.toLocaleString()}</div>
-            <div class="day-pred-sub">3手法平均</div>
-            <div class="day-pred-strong" style="color:var(--bear)">弱気: ${dayPred.predLowStrong.toLocaleString()}</div>
-          </div>
-        </div>
-
-        <div class="pred-method-grid">
-          <div class="pred-method-item">
-            <div class="pred-method-name">PIVOT</div>
-            <div class="pred-method-h">▲${dayPred.ppR1.toLocaleString()}</div>
-            <div class="pred-method-l">▼${dayPred.ppS1.toLocaleString()}</div>
-          </div>
-          <div class="pred-method-item">
-            <div class="pred-method-name">CAMARILLA</div>
-            <div class="pred-method-h">▲${dayPred.camR3.toLocaleString()}</div>
-            <div class="pred-method-l">▼${dayPred.camS3.toLocaleString()}</div>
-          </div>
-          <div class="pred-method-item">
-            <div class="pred-method-name">ATR(5)</div>
-            <div class="pred-method-h">▲${dayPred.atrHigh.toLocaleString()}</div>
-            <div class="pred-method-l">▼${dayPred.atrLow.toLocaleString()}</div>
-          </div>
-        </div>
-
-        <div style="margin-top:12px">
-          ${[
-            ['ピボット', dayPred.pivot, 'var(--gold)', '中心'],
-            ['R2 (強抵抗)', dayPred.ppR2, 'var(--bull)', '抵抗2'],
-            ['R1 (抵抗)', dayPred.ppR1, 'rgba(255,61,90,0.7)', '抵抗1'],
-            ['S1 (サポ)', dayPred.ppS1, 'rgba(0,196,255,0.7)', 'サポ1'],
-            ['S2 (強サポ)', dayPred.ppS2, 'var(--bear)', 'サポ2'],
-          ].map(([lbl, val, color, tag]) => {
-            const dist = val - currentPrice;
-            const distPct = ((dist / currentPrice) * 100).toFixed(2);
-            const isAbove = dist > 0;
-            return `<div class="pivot-row">
-              <div class="pivot-label">${lbl}</div>
-              <div class="pivot-val" style="color:${color}">${val.toLocaleString()}</div>
-              <div class="pivot-dist" style="background:${isAbove ? 'rgba(255,61,90,0.1)' : 'rgba(0,196,255,0.1)'};color:${isAbove ? 'var(--bull)' : 'var(--bear)'}">
-                ${isAbove ? '+' : ''}${Math.round(dist)} (${distPct}%)
-              </div>
-            </div>`;
-          }).join('')}
-        </div>
-        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-top:8px;text-align:center">
-          ATR(5日): ${dayPred.atrVal.toLocaleString()} pts &nbsp;|&nbsp; 前日終値ベース
-        </div>
-      </div>
-
-      <div class="deviation-panel">
-        <div class="section-title">MA 乖離率</div>
-        ${maDev ? `
-          <div style="text-align:center;margin-top:8px">
-            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-bottom:2px" id="devPeriodLabel">25日MA</div>
-            <div class="deviation-big-value" id="devBigValue" style="color:${maDev.dev25 > 0 ? 'var(--bull)' : 'var(--bear)'}">
-              ${maDev.dev25 > 0 ? '+' : ''}${maDev.dev25.toFixed(2)}%
-            </div>
-            <div style="margin:6px auto 2px;display:inline-block">
-              <span class="deviation-status-badge" style="background:${maDev.statusBg};color:${maDev.statusColor}">${maDev.status}</span>
-            </div>
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:4px">${maDev.warning}</div>
-          </div>
-          <div class="deviation-gauge">
-            <div class="deviation-track">
-              <div class="deviation-fill ${maDev.dev25 >= 0 ? 'positive' : 'negative'}" id="devGaugeFill"
-                style="width:${Math.min(50, Math.abs(maDev.dev25) / maDev.dangerThreshold * 42)}%"></div>
-              <div class="deviation-center-mark"></div>
-              <div class="deviation-danger-mark" style="left:${50 + 42}%"></div>
-              <div class="deviation-danger-mark" style="left:${50 - 42}%"></div>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:8px;color:var(--text-dim);margin-top:2px;padding:0 2px">
-            <span style="color:var(--bear)">-7%</span><span>-4%</span><span style="color:rgba(255,255,255,0.3)">0</span><span>+4%</span><span style="color:var(--bull)">+7%</span>
-          </div>
-          <div style="margin-top:12px">
-            <div class="dev-row"><div class="dev-label">現在値</div><div style="font-family:var(--font-mono);font-size:13px">${Math.round(maDev.current).toLocaleString()}</div></div>
-            <div class="dev-row" onclick="switchDevDisplay(5,${maDev.ma5.toFixed(0)},${maDev.dev5.toFixed(2)})" style="cursor:pointer">
-              <div class="dev-label">5日MA</div>
-              <div style="font-family:var(--font-mono);font-size:13px">${Math.round(maDev.ma5).toLocaleString()}</div>
-              <div style="font-family:var(--font-mono);font-size:11px;color:${maDev.dev5>0?'var(--bull)':'var(--bear)'}">${maDev.dev5>0?'+':''}${maDev.dev5.toFixed(2)}%</div>
-              <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-left:4px">▶</div>
-            </div>
-            <div class="dev-row" onclick="switchDevDisplay(13,${maDev.ma13?maDev.ma13.toFixed(0):'0'},${maDev.dev13?maDev.dev13.toFixed(2):'0'})" style="cursor:pointer">
-              <div class="dev-label">13日MA</div>
-              <div style="font-family:var(--font-mono);font-size:13px">${maDev.ma13?Math.round(maDev.ma13).toLocaleString():'-'}</div>
-              <div style="font-family:var(--font-mono);font-size:11px;color:${maDev.dev13>0?'var(--bull)':'var(--bear)'}">${maDev.dev13?(maDev.dev13>0?'+':'')+maDev.dev13.toFixed(2)+'%':'-'}</div>
-              <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-left:4px">▶</div>
-            </div>
-            <div class="dev-row" onclick="switchDevDisplay(25,${maDev.ma25.toFixed(0)},${maDev.dev25.toFixed(2)})" style="cursor:pointer;background:rgba(245,200,66,0.04)">
-              <div class="dev-label" style="color:var(--gold)">25日MA ★</div>
-              <div style="font-family:var(--font-mono);font-size:13px">${Math.round(maDev.ma25).toLocaleString()}</div>
-              <div style="font-family:var(--font-mono);font-size:11px;color:${maDev.dev25>0?'var(--bull)':'var(--bear)'}">${maDev.dev25>0?'+':''}${maDev.dev25.toFixed(2)}%</div>
-              <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-left:4px">▶</div>
-            </div>
-            ${maDev.ma75 ? `<div class="dev-row" onclick="switchDevDisplay(75,${maDev.ma75.toFixed(0)},${maDev.dev75.toFixed(2)})" style="cursor:pointer">
-              <div class="dev-label">75日MA</div>
-              <div style="font-family:var(--font-mono);font-size:13px">${Math.round(maDev.ma75).toLocaleString()}</div>
-              <div style="font-family:var(--font-mono);font-size:11px;color:${maDev.dev75>0?'var(--bull)':'var(--bear)'}">${maDev.dev75>0?'+':''}${maDev.dev75.toFixed(2)}%</div>
-              <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-left:4px">▶</div>
-            </div>` : ''}
-            <div class="dev-row"><div class="dev-label">⚠ 過熱ライン</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--gold)">25MA ± ${maDev.dangerThreshold}% が目安</div></div>
-          </div>
-        ` : '<div style="color:var(--text-dim);font-family:var(--font-mono);font-size:11px;text-align:center;padding:10px">データ不足</div>'}
-      </div>
-
-      <div class="cycle-panel">
-        <div class="section-title">変化日サイクル</div>
-        ${cycle ? `
-          <div class="cycle-countdown">
-            <div class="cycle-days-num" style="color:${cycle.daysToNext<=3?'var(--gold)':cycle.daysToNext<=7?'var(--text)':'var(--text-dim)'}">
-              ${cycle.daysToNext}
-            </div>
-            <div class="cycle-days-label">日後に変化日</div>
-            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:4px">
-              予測日: ${cycle.nextChangeDate.getMonth()+1}/${cycle.nextChangeDate.getDate()}
-              &nbsp;|&nbsp; 平均サイクル: ${cycle.avgCycle}日
-            </div>
-          </div>
-          ${cycle.isNearChangeDay ? `
-          <div class="tl-alert ${cycle.daysToNext===0?'break-up':'intact'}" style="margin-bottom:10px">
-            <div class="tl-alert-icon">${cycle.daysToNext===0?'🔔':'⏰'}</div>
-            <div class="tl-alert-body">
-              <div class="tl-alert-title" style="color:var(--gold)">${cycle.daysToNext===0?'本日が変化日の可能性！':`変化日まで ${cycle.daysToNext} 日`}</div>
-              <div class="tl-alert-sub">トレンド転換に注意 — 反転シグナルを確認</div>
-            </div>
-          </div>` : ''}
-          <div style="margin:8px 0 4px">
-            <div class="cycle-timeline">
-              <div class="cycle-track">
-                <div class="cycle-progress" style="width:${Math.min(100,(cycle.daysSinceLast/cycle.avgCycle)*100)}%"></div>
-                <div class="cycle-dot past" style="left:0%"></div>
-                <div class="cycle-dot now" style="left:${Math.min(94,(cycle.daysSinceLast/cycle.avgCycle)*100)}%"></div>
-                <div class="cycle-dot next" style="left:100%"></div>
-              </div>
-            </div>
-            <div class="cycle-label-row">
-              <span>前回転換</span>
-              <span style="color:var(--bear)">現在 (${cycle.daysSinceLast}日経過)</span>
-              <span style="color:var(--gold)">次の変化日</span>
-            </div>
-          </div>
-          <div class="cycle-history">
-            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);letter-spacing:2px;margin-bottom:6px">転換点 履歴</div>
-            ${cycle.history.map(h => `
-              <div class="cycle-hist-row">
-                <div class="cycle-hist-date">${h.date}</div>
-                <div style="font-family:var(--font-mono);font-size:11px">${h.price.toLocaleString()}</div>
-                ${h.interval ? `<div class="cycle-hist-interval">+${h.interval}日</div>` : '<div></div>'}
-                <div class="cycle-hist-type ${h.type==='manual'?'low':h.type}">${h.isManual?'📌 手動':h.type==='high'?'🔴 高値':'🔵 安値'}</div>
-              </div>`).join('')}
-          </div>
-
-          ${cycle.futureHistory && cycle.futureHistory.length > 0 ? `
-          <div style="margin-top:8px;padding:8px;background:rgba(245,200,66,0.05);border:1px solid rgba(245,200,66,0.2);border-radius:4px">
-            <div style="font-family:var(--font-mono);font-size:9px;color:var(--gold);letter-spacing:2px;margin-bottom:6px">📌 登録済み未来の変化日</div>
-            ${cycle.futureHistory.map(h => `
-              <div class="cycle-hist-row">
-                <div class="cycle-hist-date" style="color:var(--gold)">${h.date}</div>
-                <div style="font-family:var(--font-mono);font-size:11px;color:var(--gold)">${h.daysFromNow}日後</div>
-                <div></div>
-                <div class="cycle-hist-type ${h.type}">${h.type==='high'?'🔴 高値':'🔵 安値'}</div>
-              </div>`).join('')}
-          </div>` : ''}
-
-          <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
-            <div style="font-family:var(--font-mono);font-size:9px;color:var(--gold);letter-spacing:2px;margin-bottom:8px">📌 変化日を手動登録</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-              <input type="date" id="cycleDate" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:4px;font-family:var(--font-mono);font-size:11px;min-width:130px">
-              <select id="cycleType" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:4px;font-family:var(--font-mono);font-size:11px">
-                <option value="high">🔴 高値転換</option>
-                <option value="low">🔵 安値転換</option>
-              </select>
-              <button onclick="addCycleDate()" style="background:rgba(245,200,66,0.15);border:1px solid var(--gold);color:var(--gold);padding:6px 12px;border-radius:4px;font-family:var(--font-mono);font-size:10px;cursor:pointer;white-space:nowrap">追加</button>
-            </div>
-            <div id="cycleDateList" style="margin-top:8px"></div>
-          </div>
-        ` : '<div style="color:var(--text-dim);font-family:var(--font-mono);font-size:11px;text-align:center;padding:10px">データ不足</div>'}
-      </div>
-
-
-        ${tlAlertHTML(tlBase, BASE_TF)}
-        ${tlAlertHTML(tl1H,  '1H')}
-        ${tlAlertHTML(tl1D,  'D')}
-        <div style="margin-top:10px">
-          ${tlDetailRow('D  レジスタンス', tl1D,  true)}
-          ${tlDetailRow('D  サポート',     tl1D,  false)}
-          ${tlDetailRow('1H レジスタンス', tl1H,  true)}
-          ${tlDetailRow('1H サポート',     tl1H,  false)}
-          ${tlDetailRow(BASE_TF+' レジスタンス', tlBase, true)}
-          ${tlDetailRow(BASE_TF+' サポート', tlBase, false)}
-        </div>
-      </div>
-
-      <div class="tl-panel">
-        <div class="section-title">15分足チャート — トレンドライン</div>
-        <div class="chart-wrap">
-          <canvas id="chart15m"></canvas>
-        </div>
-      </div>
-
-      <div class="tl-panel">
-        <div class="section-title">日足チャート — トレンドライン</div>
-        <div class="chart-wrap">
-          <canvas id="chart1D"></canvas>
-        </div>
-      </div>
-
-
-        ${tfRow('日足 D', an1D)}
-        ${tfRow('4時間 H4', an4H)}
-        ${tfRow('1時間 H1', an1H)}
-        ${tfRow('15分 M15', an15m)}
-      </div>
-
-      <div class="score-panel">
-        <div class="section-title">BULL / BEAR スコア</div>
-        <div class="score-meter">
-          <div class="score-label">BEAR</div>
-          <div class="score-bar">
-            <div class="score-bar-bull" style="width:${bullPct/2}%"></div>
-            <div class="score-bar-bear" style="width:${bearPct/2}%"></div>
-            <div class="score-center"></div>
-          </div>
-          <div class="score-num">BULL</div>
-        </div>
-        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);text-align:center;margin-top:6px">
-          買い ${bullCount}/4 &nbsp;|&nbsp; 売り ${bearCount}/4 &nbsp;|&nbsp; 中立 ${4-bullCount-bearCount}/4
-        </div>
-      </div>
-
-      <div class="fib-panel">
-        <div class="section-title">フィボナッチ レジスタンス / サポート</div>
-        ${fibRow('100', fibs[100], '高値', 'target')}
-        ${fibRow('76.4', fibs[764], '抵抗', 'resist')}
-        ${fibRow('61.8', fibs[618], '抵抗', 'resist')}
-        ${fibRow('50.0', fibs[500], '中間', 'current')}
-        ${fibRow('38.2', fibs[382], 'サポ', 'support')}
-        ${fibRow('23.6', fibs[236], 'サポ', 'support')}
-        ${fibRow('0.0', fibs[0], '安値', 'support')}
-      </div>
-
-      <div class="signal-panel">
-        <div class="section-title">MACD シグナル状態</div>
-        <div class="signal-grid">
-          <div class="signal-item">
-            <div class="signal-tf">日 足</div>
-            <div class="signal-val ${an1D.macd === 'GC' ? 'bull-text' : 'bear-text'}">${an1D.macd === 'GC' ? '🔴 GC' : '🔵 DC'}</div>
-          </div>
-          <div class="signal-item">
-            <div class="signal-tf">4H 足</div>
-            <div class="signal-val ${an4H.macd === 'GC' ? 'bull-text' : 'bear-text'}">${an4H.macd === 'GC' ? '🔴 GC' : '🔵 DC'}</div>
-          </div>
-          <div class="signal-item">
-            <div class="signal-tf">1H 足</div>
-            <div class="signal-val ${an1H.macd === 'GC' ? 'bull-text' : 'bear-text'}">${an1H.macd === 'GC' ? '🔴 GC' : '🔵 DC'}</div>
-          </div>
-          <div class="signal-item">
-            <div class="signal-tf">15m 足</div>
-            <div class="signal-val ${an15m.macd === 'GC' ? 'bull-text' : 'bear-text'}">${an15m.macd === 'GC' ? '🔴 GC' : '🔵 DC'}</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="mtf-panel">
-        <div class="section-title">${BASE_TF.toUpperCase()}足 直近ローソク足</div>
-        <div class="mini-candles">${candlesHTML}</div>
-      </div>
-    `;
-
-    // Draw canvas charts after DOM update
-    requestAnimationFrame(() => {
-      drawChart('chart15m', tfBase, tlBase, 'N225f '+BASE_TF.toUpperCase());
-      drawChart('chart1D',  tf1D,  tl1D,  'N225f D');
-    });
+    renderCycList();
 
   } catch(e) {
-    document.getElementById('app').innerHTML = `
-      <div class="error-msg">
-        ⚠ エラー発生<br><br>
-        <span style="font-family:monospace;font-size:12px">${e.message}</span><br><br>
-        <span style="font-size:10px;opacity:0.6">上のデバッグログを確認してください</span>
-      </div>
-    `;
+    document.getElementById('app').innerHTML=
+      '<div class="err-box">⚠ '+e.message+'<br><br>'+
+      '<span style="font-size:10px;opacity:.6">↻ボタンで再試行してください</span></div>';
   }
 }
 
-function switchDevDisplay(period, maVal, devVal) {
-  const label = document.getElementById('devPeriodLabel');
-  const big   = document.getElementById('devBigValue');
-  const fill  = document.getElementById('devGaugeFill');
-  if (!label || !big) return;
-  const dev = parseFloat(devVal);
-  label.textContent = `${period}日MA`;
-  big.textContent = (dev > 0 ? '+' : '') + dev.toFixed(2) + '%';
-  big.style.color = dev > 0 ? 'var(--bull)' : 'var(--bear)';
-  if (fill) {
-    fill.style.width = Math.min(50, Math.abs(dev) / 7.0 * 42) + '%';
-    fill.className = 'deviation-fill ' + (dev >= 0 ? 'positive' : 'negative');
-  }
+function switchDev(dv, lbl) {
+  const p=document.getElementById('devPeriod');
+  const b=document.getElementById('devBig');
+  const f=document.getElementById('devFill');
+  if(!p||!b) return;
+  p.textContent=lbl;
+  b.textContent=(dv>0?'+':'')+dv.toFixed(2)+'%';
+  b.style.color=dv>0?'var(--bull)':'var(--bear)';
 }
 
-function addCycleDate() {
-  const dateEl = document.getElementById('cycleDate');
-  const typeEl = document.getElementById('cycleType');
-  if (!dateEl || !dateEl.value) return;
-  const dates = loadCycleDates();
-  // 重複チェック
-  if (dates.find(d => d.date === dateEl.value)) {
-    alert('その日付はすでに登録されています');
-    return;
-  }
-  dates.push({ date: dateEl.value, type: typeEl.value });
-  dates.sort((a, b) => a.date.localeCompare(b.date));
-  saveCycleDates(dates);
-  renderCycleDateList();
-  loadData(); // 再計算
-}
-
-function removeCycleDate(dateStr) {
-  const dates = loadCycleDates().filter(d => d.date !== dateStr);
-  saveCycleDates(dates);
+function addCyc() {
+  const d=document.getElementById('cycDate');
+  const t=document.getElementById('cycType');
+  if(!d||!d.value) return;
+  const list=loadCyc();
+  if(list.find(x=>x.date===d.value)){ alert('その日付はすでに登録されています'); return; }
+  list.push({date:d.value,type:t.value});
+  list.sort((a,b)=>a.date.localeCompare(b.date));
+  saveCyc(list);
   loadData();
 }
 
-function renderCycleDateList() {
-  const el = document.getElementById('cycleDateList');
-  if (!el) return;
-  const dates = loadCycleDates();
-  if (dates.length === 0) {
-    el.innerHTML = '<div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim)">登録なし</div>';
-    return;
-  }
-  el.innerHTML = dates.map(d => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(30,45,61,0.4);font-family:var(--font-mono);font-size:10px">
-      <span style="color:${d.type==='high'?'var(--bull)':'var(--bear)'}">${d.type==='high'?'🔴':'🔵'} ${d.date}</span>
-      <button onclick="removeCycleDate('${d.date}')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:0 4px">✕</button>
-    </div>`).join('');
+function removeCyc(date) {
+  saveCyc(loadCyc().filter(x=>x.date!==date));
+  loadData();
+}
+
+function renderCycList() {
+  const el=document.getElementById('cycList');
+  if(!el) return;
+  const list=loadCyc();
+  if(!list.length){ el.innerHTML='<div style="font-family:var(--mono);font-size:9px;color:var(--dim)">登録なし</div>'; return; }
+  el.innerHTML=list.map(d=>
+    '<div class="cyc-item">'+
+      '<span style="color:'+(d.type==='high'?'var(--bull)':'var(--bear)')+'">'+
+        (d.type==='high'?'🔴':'🔵')+' '+d.date+'</span>'+
+      '<button class="cyc-del" onclick="removeCyc(\''+d.date+'\')">✕</button>'+
+    '</div>'
+  ).join('');
 }
 
 loadData();
-// 初期リスト描画（app描画後）
-setTimeout(renderCycleDateList, 500);
 </script>
 </body>
 </html>
