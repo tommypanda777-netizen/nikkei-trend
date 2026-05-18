@@ -61,7 +61,7 @@ select.upd-btn{color-scheme:dark;}
 .tf-cells{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px;}
 .tfc{border-radius:5px;padding:8px 4px 6px;text-align:center;border:1px solid var(--border);
   background:var(--surface);cursor:pointer;}
-.tfc.active-tf{border-color:#fff;box-shadow:0 0 6px rgba(255,255,255,.3);}
+.tfc.active-tf{border-color:#fff !important;box-shadow:0 0 8px rgba(255,255,255,.4) !important;}
 .tfc.cbull{background:rgba(255,61,90,.25);border-color:rgba(255,61,90,.5);}
 .tfc.cbear{background:rgba(0,196,255,.25);border-color:rgba(0,196,255,.5);}
 .tfc-lbl{font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:4px;}
@@ -650,7 +650,7 @@ async function loadData() {
       const active=BASE_TF===t.key;
       const cc=bull?'cbull':bear?'cbear':'';
       const ac=active?'active-tf':'';
-      const ico=bull?'🟥':bear?'🟦':'—';
+      const ico=bull?'上昇':bear?'下降':'中立';
       const txt=bull?'上昇':bear?'下降':'中立';
       const col=bull?'var(--bull)':bear?'var(--bear)':'var(--dim)';
       const tlt=trendlineAnalysis(
@@ -658,13 +658,13 @@ async function loadData() {
       );
       let brk='';
       if(tlt){
-        if(tlt.alert.type==='bd') brk='<div class="tfc-brk" style="background:rgba(0,196,255,.15);color:var(--bear)">S割れ</div>';
-        else if(tlt.alert.type==='bu') brk='<div class="tfc-brk" style="background:rgba(255,61,90,.15);color:var(--bull)">R抜け</div>';
+        if(tlt.alert.type==='bd') brk='<div class="tfc-brk" style="background:rgba(0,196,255,.35);color:#fff;font-weight:bold">S割れ</div>';
+        else if(tlt.alert.type==='bu') brk='<div class="tfc-brk" style="background:rgba(255,61,90,.35);color:#fff;font-weight:bold">R抜け</div>';
       }
       return '<div class="tfc '+cc+' '+ac+'" onclick="setTF(\''+t.key+'\');document.getElementById(\'tfSelect\').value=\''+t.key+'\'">'
         +'<div class="tfc-lbl">'+t.lbl+'</div>'
-        +'<div class="tfc-ico" style="color:'+col+'">'+ico+'</div>'
-        +'<div class="tfc-txt" style="color:'+col+'">'+txt+'</div>'
+        +'<div class="tfc-ico" style="color:'+col+';font-size:16px;font-weight:700;font-family:\'Noto Sans JP\',sans-serif;letter-spacing:1px;">'+ico+'</div>'
+        
         +brk+'</div>';
     }
 
