@@ -59,8 +59,8 @@ select.upd-btn{color-scheme:dark;}
 
 /* TF CELLS */
 .tf-cells{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px;}
-.tfc{border-radius:5px;padding:8px 4px 6px;text-align:center;border:1px solid var(--border);
-  background:var(--surface);cursor:pointer;}
+.tfc{border-radius:5px;padding:10px 4px 8px;text-align:center;border:1px solid var(--border);
+  background:var(--surface);cursor:pointer;min-height:72px;}
 .tfc.active-tf{border-color:#fff !important;box-shadow:0 0 8px rgba(255,255,255,.4) !important;}
 .tfc.cbull{background:rgba(255,61,90,.25);border-color:rgba(255,61,90,.5);}
 .tfc.cbear{background:rgba(0,196,255,.25);border-color:rgba(0,196,255,.5);}
@@ -178,11 +178,95 @@ canvas{display:block;width:100%;}
 
 
 
+/* 設定メニュー */
+.settings-btn{
+  position:fixed;top:12px;left:12px;z-index:100;
+  width:36px;height:36px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--dim);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.4);
+  transition:all .2s;
+}
+.settings-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+.settings-overlay{
+  display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.7);
+}
+.settings-overlay.open{display:block;}
+
+.settings-panel{
+  position:fixed;top:0;left:0;bottom:0;z-index:201;
+  width:min(320px,90vw);background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  transform:translateX(-100%);transition:transform .3s ease;
+}
+.settings-panel.open{transform:translateX(0);}
+
+.settings-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px;border-bottom:1px solid var(--border);
+}
+.settings-title{font-family:var(--mono);font-size:12px;letter-spacing:3px;color:var(--text);}
+.settings-close{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;padding:4px;}
+
+.settings-body{flex:1;overflow-y:auto;padding:16px;}
+
+.settings-section{
+  font-family:var(--mono);font-size:9px;color:var(--dim);
+  letter-spacing:3px;margin-bottom:8px;margin-top:16px;
+}
+.settings-section:first-child{margin-top:0;}
+
+.panel-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:5px;
+  margin-bottom:6px;cursor:grab;user-select:none;
+  transition:border-color .2s;
+}
+.panel-item:active{cursor:grabbing;border-color:var(--gold);}
+.panel-item.dragging{opacity:.5;border-color:var(--gold);}
+.panel-item.drag-over{border-color:var(--bear);background:rgba(0,196,255,.08);}
+
+.panel-item-drag{color:var(--dim);font-size:14px;flex-shrink:0;}
+.panel-item-name{font-family:var(--mono);font-size:11px;color:var(--text);flex:1;}
+.panel-item-toggle{
+  width:36px;height:20px;border-radius:10px;
+  background:var(--border);border:none;cursor:pointer;
+  position:relative;transition:background .2s;flex-shrink:0;
+}
+.panel-item-toggle.on{background:var(--bear);}
+.panel-item-toggle::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:16px;height:16px;border-radius:50%;background:#fff;
+  transition:transform .2s;
+}
+.panel-item-toggle.on::after{transform:translateX(16px);}
+
 footer{text-align:center;padding:16px 0;font-family:var(--mono);font-size:9px;color:var(--dim);
   letter-spacing:2px;border-top:1px solid var(--border);margin-top:4px;}
 </style>
 </head>
 <body>
+<button class="settings-btn" onclick="openSettings()" title="設定">⚙</button>
+<div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-header">
+    <div class="settings-title">SETTINGS</div>
+    <button class="settings-close" onclick="closeSettings()">✕</button>
+  </div>
+  <div class="settings-body">
+    <div class="settings-section">パネルの表示順・表示切替</div>
+    <div id="panelOrderList"></div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:12px;line-height:1.6">
+      ドラッグで並び替え<br>右のボタンで表示／非表示
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
   <header>
     <div class="hdr-sub">FUTURES ANALYSIS SYSTEM</div>
@@ -880,91 +964,61 @@ async function loadData() {
         '<div class="tl-sub">'+a.sub+'</div></div></div>';
     }
 
-    // ===== RENDER HTML =====
-    app.innerHTML =
+    // ===== パネルHTMLを個別に定義 =====
+    const panelHTMLs = {};
 
-      // Overall trend
-      '<div class="trend-banner '+oCls+'">'+
-        '<div class="trend-label">OVERALL TREND | '+inst.label+' / '+BASE_TF.toUpperCase()+'</div>'+
-        '<div class="trend-main">'+oMain+'</div>'+
-        '<div class="trend-sub">'+oSub+'</div>'+
-      '</div>'+
-
-      // TF cells
-      '<div class="tf-cells">'+dispTF.map(tfCell).join('')+'</div>'+
-
-      // Price card
-      '<div class="price-card">'+
-        '<div class="pi"><div class="pi-lbl">現在値</div>'+
-        '<div class="pi-val '+(chg>=0?'up':'dn')+'">'+fmt(cur)+'</div>'+
-        '<div class="pi-sub '+(chg>=0?'':'')+'">'+
-          '<span style="color:'+(chg>=0?'var(--bull)':'var(--bear)')+'">'+sign(chg)+fmt(chg)+' ('+pct(chgP)+')</span><br>'+
-          '<span style="font-size:9px;color:var(--dim)">'+prevLbl+'</span>'+
-        '</div></div>'+
-        '<div class="pi">'+
-          '<div class="pi-lbl">▲ 高値予測</div>'+
-          '<div style="font-family:var(--mono);font-size:16px;color:var(--bull)">'+fmt(dp.predH)+'</div>'+
-          '<div class="pi-lbl" style="margin-top:6px">▼ 安値予測</div>'+
-          '<div style="font-family:var(--mono);font-size:16px;color:var(--bear)">'+fmt(dp.predL)+'</div>'+
-        '</div>'+
-      '</div>'+
-
-      // Market sentiment panel
+    panelHTMLs['sentiment'] =
       '<div class="panel">'+
         '<div class="sec">マーケットセンチメント</div>'+
-        // VIX
-        (vix ? (()=>{
-          const lv = vix<15?'落ち着き':vix<20?'平常':vix<25?'やや警戒':vix<30?'警戒':vix<40?'恐怖':'極度の恐怖';
-          const col = vix<20?'var(--text)':vix<25?'var(--gold)':vix<30?'rgba(255,140,0,1)':'var(--bull)';
-          const pct2 = Math.min(100, vix/50*100);
+        (vix?(()=>{
+          const lv=vix<15?'落ち着き':vix<20?'平常':vix<25?'やや警戒':vix<30?'警戒':vix<40?'恐怖':'極度の恐怖';
+          const vc=vix<20?'var(--text)':vix<25?'var(--gold)':vix<30?'rgba(255,140,0,1)':'var(--bull)';
+          const vp=Math.min(100,vix/50*100);
           return '<div style="margin-bottom:10px">'+
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
               '<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">VIX 恐怖指数</div>'+
-              '<div style="font-family:var(--mono);font-size:13px;color:'+col+'">'+vix.toFixed(2)+' <span style="font-size:10px">'+lv+'</span></div>'+
+              '<div style="font-family:var(--mono);font-size:13px;color:'+vc+'">'+vix.toFixed(2)+' <span style="font-size:10px">'+lv+'</span></div>'+
             '</div>'+
             '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">'+
-              '<div style="height:100%;width:'+pct2+'%;background:linear-gradient(90deg,#27ae60,'+col+');border-radius:3px"></div>'+
+              '<div style="height:100%;width:'+vp+'%;background:linear-gradient(90deg,#27ae60,'+vc+');border-radius:3px"></div>'+
             '</div>'+
             '<div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--dim);margin-top:2px">'+
               '<span>0 落ち着き</span><span>20 平常</span><span>30 警戒</span><span>50+ 恐怖</span>'+
-            '</div>'+
-          '</div>';
-        })() : '') +
-        // ドル円・ダウ
+            '</div></div>';
+        })():'')+
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
-          (usdjpy ? '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center">'+
+          (usdjpy?'<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center">'+
             '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:3px">ドル円</div>'+
-            '<div style="font-family:var(--mono);font-size:15px;color:#fff">'+usdjpy.toFixed(2)+'</div>'+
-          '</div>' : '') +
-          (dow ? '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center">'+
+            '<div style="font-family:var(--mono);font-size:15px;color:#fff">'+usdjpy.toFixed(2)+'</div></div>':'')+
+          (dow?'<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center">'+
             '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:3px">NYダウ</div>'+
             '<div style="font-family:var(--mono);font-size:15px;color:#fff">'+Math.round(dow).toLocaleString()+'</div>'+
             '<div style="font-family:var(--mono);font-size:10px;color:'+(dowChg>=0?'var(--bull)':'var(--bear)')+'">'+
-              (dowChg>=0?'+':'')+dowChg.toFixed(2)+'%</div>'+
-          '</div>' : '') +
+              (dowChg>=0?'+':'')+dowChg.toFixed(2)+'%</div></div>':'')+
         '</div>'+
-      '</div>'+
+      '</div>';
 
+    panelHTMLs['malines'] =
       '<div class="panel">'+
         '<div class="sec">MAライン抵抗値（上値）</div>'+
         (maAbove.length?maAbove.map(l=>maRow(l,true)).join(''):'<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">なし</div>')+
         '<div class="sec" style="margin-top:10px">MAライン抵抗値（下値）</div>'+
         (maBelow.length?maBelow.map(l=>maRow(l,false)).join(''):'<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">なし</div>')+
-      '</div>'+
+      '</div>';
 
-      // MTF Status
+    panelHTMLs['mtf'] =
       '<div class="panel">'+
         '<div class="sec">MULTI-TIMEFRAME STATUS</div>'+
         [['日足 D',anD],['4時間 H4',an4],['1時間 H1',anH],['15分 M15',an15]].map(([lbl,an])=>{
           const bull=an.bull,bear=an.bear;
-          const pct2=bull?75:bear?25:50;
+          const p2=bull?75:bear?25:50;
           const bc=bull?'var(--bull)':bear?'var(--bear)':'var(--dim)';
           const dc=bull?'b':bear?'e':'n';
           const st=bull?'赤':bear?'青':'中立';
           const sc=bull?'var(--bull)':bear?'var(--bear)':'var(--dim)';
           return '<div class="mtf-row">'+
             '<div class="mtf-tf">'+lbl+'</div>'+
-            '<div class="mtf-bar"><div class="mtf-fill" style="width:'+pct2+'%;background:'+bc+'"></div></div>'+
+            '<div class="mtf-bar"><div class="mtf-fill" style="width:'+p2+'%;background:'+bc+'"></div></div>'+
             '<div class="mtf-st" style="color:'+sc+'"><span class="dot '+dc+'"></span>'+st+'</div>'+
             '<div class="mtf-mc" style="color:'+sc+'">'+an.macd+'</div>'+
           '</div>';
@@ -983,9 +1037,9 @@ async function loadData() {
             '買い '+bullN+'/4 | 売り '+bearN+'/4'+
           '</div>'+
         '</div>'+
-      '</div>'+
+      '</div>';
 
-      // Trendline alerts
+    panelHTMLs['trendline'] =
       '<div class="panel">'+
         '<div class="sec">トレンドライン ブレイク検出</div>'+
         tlAlertHTML(tlM5,'5m')+
@@ -996,9 +1050,9 @@ async function loadData() {
         '<div class="chart-wrap" style="margin-top:8px"><canvas id="ch15m"></canvas></div>'+
         '<div class="chart-wrap" style="margin-top:8px"><canvas id="ch1h"></canvas></div>'+
         '<div class="chart-wrap" style="margin-top:8px"><canvas id="chD"></canvas></div>'+
-      '</div>'+
+      '</div>';
 
-      // Day prediction detail
+    panelHTMLs['daypred'] =
       '<div class="panel">'+
         '<div class="sec">本日の高値・安値予測</div>'+
         [['R2 (強抵抗)',dp.ppR2,dp.ppR2-cur,'var(--bull)'],
@@ -1013,25 +1067,25 @@ async function loadData() {
               ';color:'+(dist>0?'var(--bull)':'var(--bear)')+'">'+sign(dist)+fmt(dist)+'</div>'+
           '</div>'
         ).join('')+
-      '</div>'+
+      '</div>';
 
-      // Fibonacci
+    panelHTMLs['fib'] =
       '<div class="panel">'+
         '<div class="sec">フィボナッチ レジスタンス / サポート</div>'+
         fibRows.map(f=>{
           const near=Math.abs(f.price-cur)/cur<.005;
-          const colMap={target:'rgba(255,61,90,.2)/var(--bull)',resist:'rgba(255,61,90,.1)/rgba(255,61,90,.6)',
+          const cm={target:'rgba(255,61,90,.2)/var(--bull)',resist:'rgba(255,61,90,.1)/rgba(255,61,90,.6)',
             mid:'rgba(245,200,66,.2)/var(--gold)',sup:'rgba(0,196,255,.2)/var(--bear)'};
-          const [bg,col]=(colMap[f.cls]||'rgba(74,86,104,.2)/var(--dim)').split('/');
+          const [bg,fc]=(cm[f.cls]||'rgba(74,86,104,.2)/var(--dim)').split('/');
           return '<div class="fib-row"'+(near?' style="background:rgba(245,200,66,.05)"':'')+'>'+
             '<div class="fib-lv">'+f.lv+'</div>'+
             '<div class="fib-pr">'+fmt(f.price)+'</div>'+
-            '<div class="fib-tag" style="background:'+bg+';color:'+col+'">'+f.tag+'</div>'+
+            '<div class="fib-tag" style="background:'+bg+';color:'+fc+'">'+f.tag+'</div>'+
           '</div>';
         }).join('')+
-      '</div>'+
+      '</div>';
 
-      // MA Deviation
+    panelHTMLs['deviation'] =
       '<div class="panel">'+
         '<div class="sec">MA 乖離率</div>'+
         '<div class="dev-period" id="devPeriod">25日MA</div>'+
@@ -1045,10 +1099,9 @@ async function loadData() {
         '<div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--dim);margin:2px 2px 10px">'+
           '<span style="color:var(--bear)">-'+dev.warnPct+'%</span><span>0</span><span style="color:var(--bull)">+'+dev.warnPct+'%</span>'+
         '</div>'+
-        // MA rows
         [['5日MA',dev.ma5,dev.dev5],['13日MA',dev.ma13,dev.dev13],['25日MA★',dev.ma25,dev.dev25],['75日MA',dev.ma75,dev.dev75]].map(([lbl,ma,dv])=>{
           if(ma==null) return '';
-          return '<div class="dev-row" onclick="switchDev('+dv.toFixed(2)+',\''+lbl+'\')" style="cursor:pointer">'+
+          return '<div class="dev-row" onclick="switchDev('+dv.toFixed(2)+',''+lbl+'')" style="cursor:pointer">'+
             '<div class="dev-lbl">'+lbl+'</div>'+
             '<div style="font-family:var(--mono);font-size:13px">'+fmt(ma)+'</div>'+
             '<div style="font-family:var(--mono);font-size:11px;color:'+(dv>0?'var(--bull)':'var(--bear)')+'">'+pct(dv)+'</div>'+
@@ -1056,42 +1109,40 @@ async function loadData() {
           '</div>';
         }).join('')+
         '<div class="dev-row"><div class="dev-lbl">⚠ 過熱ライン</div><div style="font-family:var(--mono);font-size:11px;color:var(--gold)">25MA ± '+dev.warnPct+'% 目安</div></div>'+
-      '</div>'+
+      '</div>';
 
-      // Cycle
+    const cycHistHTML = cyc.hist.map(h=>
+      '<div class="cyc-hist">'+
+        '<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">'+h.date+'</div>'+
+        '<div style="font-family:var(--mono);font-size:11px">'+h.price.toLocaleString()+'</div>'+
+        (h.intv?'<div style="font-family:var(--mono);font-size:10px;color:var(--gold)">+'+h.intv+'日</div>':'<div></div>')+
+        '<div style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:'+(h.type==='high'?'rgba(255,61,90,.15)':'rgba(0,196,255,.15)')+';color:'+(h.type==='high'?'var(--bull)':'var(--bear)')+'">'+
+          (h.manual?'📌 ':'')+(h.type==='high'?'🔴 高値':'🔵 安値')+'</div>'+
+      '</div>'
+    ).join('');
+
+    panelHTMLs['cycle'] =
       '<div class="panel">'+
         '<div class="sec">変化日サイクル</div>'+
         '<div class="cyc-num" style="color:'+(cyc.toNext<=3?'var(--gold)':cyc.toNext<=7?'var(--text)':'var(--dim)')+'">'+cyc.toNext+'</div>'+
         '<div class="cyc-lbl">日後に変化日</div>'+
-        '<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;margin-top:4px">'+
-          '予測: '+(cyc.nextDate.getMonth()+1)+'/'+(cyc.nextDate.getDate())+
-          ' | 平均サイクル: '+cyc.avg+'日'+
-        '</div>'+
+        '<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;margin-top:4px">予測: '+(cyc.nextDate.getMonth()+1)+'/'+(cyc.nextDate.getDate())+' | 平均: '+cyc.avg+'日</div>'+
         (cyc.near?'<div class="tl-alert '+(cyc.toNext===0?'bu':'ok')+'" style="margin:10px 0">'+
           '<div class="tl-ico">'+(cyc.toNext===0?'🔔':'⏰')+'</div>'+
           '<div><div class="tl-ttl" style="color:var(--gold)">'+(cyc.toNext===0?'本日が変化日の可能性！':'変化日まで'+cyc.toNext+'日')+'</div>'+
           '<div class="tl-sub">トレンド転換に注意</div></div></div>':'')+
-        // timeline
         '<div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px">'+
           '<div style="font-family:var(--mono);font-size:9px;color:var(--dim)">前回</div>'+
           '<div class="cyc-track">'+
             '<div class="cyc-prog" style="width:'+Math.min(100,cyc.sinceL/cyc.avg*100)+'%"></div>'+
             '<div class="cyc-dot" style="left:0%;background:var(--dim)"></div>'+
-            '<div class="cyc-dot" style="left:'+Math.min(94,cyc.sinceL/cyc.avg*100)+'%;background:var(--bear);box-shadow:0 0 8px var(--bear)"></div>'+
-            '<div class="cyc-dot" style="left:100%;background:var(--gold);box-shadow:0 0 8px var(--gold)"></div>'+
+            '<div class="cyc-dot" style="left:'+Math.min(94,cyc.sinceL/cyc.avg*100)+'%;background:var(--bear)"></div>'+
+            '<div class="cyc-dot" style="left:100%;background:var(--gold)"></div>'+
           '</div>'+
           '<div style="font-family:var(--mono);font-size:9px;color:var(--gold)">次回</div>'+
         '</div>'+
-        // history
         '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 6px">転換点 履歴</div>'+
-        cyc.hist.map(h=>'<div class="cyc-hist">'+
-          '<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">'+h.date+'</div>'+
-          '<div style="font-family:var(--mono);font-size:11px">'+h.price.toLocaleString()+'</div>'+
-          (h.intv?'<div style="font-family:var(--mono);font-size:10px;color:var(--gold)">+'+h.intv+'日</div>':'<div></div>')+
-          '<div style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:'+(h.type==='high'?'rgba(255,61,90,.15)':'rgba(0,196,255,.15)')+';color:'+(h.type==='high'?'var(--bull)':'var(--bear)')+'">'+
-            (h.manual?'📌 ':'')+(h.type==='high'?'🔴 高値':'🔵 安値')+'</div>'+
-        '</div>').join('')+
-        // future dates
+        cycHistHTML+
         (cyc.futHist.length?'<div style="margin:8px 0;padding:8px;background:rgba(245,200,66,.05);border:1px solid rgba(245,200,66,.2);border-radius:4px">'+
           '<div style="font-family:var(--mono);font-size:9px;color:var(--gold);margin-bottom:6px">📌 登録済み未来の変化日</div>'+
           cyc.futHist.map(f=>'<div class="cyc-hist">'+
@@ -1099,10 +1150,7 @@ async function loadData() {
             '<div style="font-family:var(--mono);font-size:11px;color:var(--gold)">'+f.days+'日後</div>'+
             '<div></div>'+
             '<div style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:'+(f.type==='high'?'rgba(255,61,90,.15)':'rgba(0,196,255,.15)')+';color:'+(f.type==='high'?'var(--bull)':'var(--bear)')+'">'+
-              (f.type==='high'?'🔴 高値':'🔵 安値')+'</div>'+
-          '</div>').join('')+
-        '</div>':'')   +
-        // input
+              (f.type==='high'?'🔴 高値':'🔵 安値')+'</div></div>').join('')+'</div>':'')+
         '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">'+
           '<div style="font-family:var(--mono);font-size:9px;color:var(--gold);margin-bottom:8px">📌 変化日を手動登録</div>'+
           '<div class="cyc-input-row">'+
@@ -1114,8 +1162,31 @@ async function loadData() {
         '</div>'+
       '</div>';
 
-    // draw charts
-    requestAnimationFrame(()=>{
+    // ===== RENDER HTML =====
+    app.innerHTML =
+      '<div class="trend-banner '+oCls+'">'+
+        '<div class="trend-label">OVERALL TREND | '+inst.label+' / '+BASE_TF.toUpperCase()+'</div>'+
+        '<div class="trend-main">'+oMain+'</div>'+
+        '<div class="trend-sub">'+oSub+'</div>'+
+      '</div>'+
+      '<div class="tf-cells">'+dispTF.map(tfCell).join('')+'</div>'+
+      '<div class="price-card">'+
+        '<div class="pi"><div class="pi-lbl">現在値</div>'+
+        '<div class="pi-val '+(chg>=0?'up':'dn')+'">'+fmt(cur)+'</div>'+
+        '<div class="pi-sub">'+
+          '<span style="color:'+(chg>=0?'var(--bull)':'var(--bear)')+'">'+sign(chg)+fmt(chg)+' ('+pct(chgP)+')</span><br>'+
+          '<span style="font-size:9px;color:var(--dim)">'+prevLbl+'</span>'+
+        '</div></div>'+
+        '<div class="pi">'+
+          '<div class="pi-lbl">▲ 高値予測</div>'+
+          '<div style="font-family:var(--mono);font-size:16px;color:var(--bull)">'+fmt(dp.predH)+'</div>'+
+          '<div class="pi-lbl" style="margin-top:6px">▼ 安値予測</div>'+
+          '<div style="font-family:var(--mono);font-size:16px;color:var(--bear)">'+fmt(dp.predL)+'</div>'+
+        '</div>'+
+      '</div>'+
+      panelSettings.filter(p=>p.on).map(p=>panelHTMLs[p.id]||'').join('');
+
+    // draw chartsionFrame(()=>{
       if(m5 !== m15) {
         drawChart('ch5m', m5, tlM5, 'N225f 5m');
       } else {
@@ -1213,6 +1284,99 @@ document.addEventListener('DOMContentLoaded', () => {
     _autoTimer = setInterval(loadData, parseInt(_savedRefresh) * 1000);
   }
 });
+
+// =============================================
+// 設定メニュー・パネル並び替え
+// =============================================
+
+const PANELS = [
+  { id:'sentiment',  name:'マーケットセンチメント', on:true },
+  { id:'malines',    name:'MAライン抵抗値',          on:true },
+  { id:'mtf',        name:'MTF STATUS',              on:true },
+  { id:'trendline',  name:'トレンドライン検出',       on:true },
+  { id:'daypred',    name:'本日の高値・安値予測',     on:true },
+  { id:'fib',        name:'フィボナッチ',             on:true },
+  { id:'deviation',  name:'MA乖離率',                on:true },
+  { id:'cycle',      name:'変化日サイクル',           on:true },
+];
+
+const PANELS_KEY = 'panel_settings';
+function loadPanelSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PANELS_KEY) || '[]');
+    if(saved.length) {
+      // 保存済みの順序・表示状態を復元
+      const result = [];
+      saved.forEach(s => {
+        const p = PANELS.find(p => p.id === s.id);
+        if(p) result.push({...p, on: s.on});
+      });
+      // 新しいパネルが追加されていたら末尾に追加
+      PANELS.forEach(p => { if(!result.find(r=>r.id===p.id)) result.push({...p}); });
+      return result;
+    }
+  } catch{}
+  return PANELS.map(p=>({...p}));
+}
+function savePanelSettings(panels) {
+  try { localStorage.setItem(PANELS_KEY, JSON.stringify(panels.map(p=>({id:p.id,on:p.on})))); } catch{}
+}
+
+let panelSettings = loadPanelSettings();
+
+function openSettings() {
+  document.getElementById('settingsOverlay').classList.add('open');
+  document.getElementById('settingsPanel').classList.add('open');
+  renderPanelList();
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+  document.getElementById('settingsPanel').classList.remove('open');
+}
+
+function renderPanelList() {
+  const el = document.getElementById('panelOrderList');
+  if(!el) return;
+  el.innerHTML = panelSettings.map((p,i) =>
+    '<div class="panel-item" draggable="true" data-idx="'+i+'" '+
+      'ondragstart="dragStart(event,'+i+')" '+
+      'ondragover="dragOver(event,'+i+')" '+
+      'ondrop="dragDrop(event,'+i+')" '+
+      'ondragend="dragEnd()">'+
+      '<div class="panel-item-drag">☰</div>'+
+      '<div class="panel-item-name">'+p.name+'</div>'+
+      '<button class="panel-item-toggle '+(p.on?'on':'')+'" onclick="togglePanel('+i+')"></button>'+
+    '</div>'
+  ).join('');
+}
+
+function togglePanel(i) {
+  panelSettings[i].on = !panelSettings[i].on;
+  savePanelSettings(panelSettings);
+  renderPanelList();
+  loadData();
+}
+
+let dragSrc = null;
+function dragStart(e, i) { dragSrc=i; e.target.classList.add('dragging'); }
+function dragOver(e, i)  { e.preventDefault(); document.querySelectorAll('.panel-item').forEach(el=>el.classList.remove('drag-over')); e.currentTarget.classList.add('drag-over'); }
+function dragEnd()       { document.querySelectorAll('.panel-item').forEach(el=>el.classList.remove('dragging','drag-over')); }
+function dragDrop(e, i)  {
+  e.preventDefault();
+  if(dragSrc===null||dragSrc===i) return;
+  const arr=[...panelSettings];
+  const [moved]=arr.splice(dragSrc,1);
+  arr.splice(i,0,moved);
+  panelSettings=arr;
+  savePanelSettings(panelSettings);
+  renderPanelList();
+  loadData();
+}
+
+// パネルIDからHTMLを返す（loadData内で使用）
+function getPanelHTML(id, panels) {
+  return panels[id] || '';
+}
 
 // 保存された選択状態をプルダウンに反映
 document.getElementById('instrumentSelect').value = BASE_INST;
