@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{background:#111;color:#eee;font-family:monospace;padding:20px;font-size:14px;}
+button{background:#333;color:#fff;border:1px solid #555;padding:12px 24px;font-size:14px;border-radius:4px;cursor:pointer;display:block;margin:10px 0;}
+.ok{color:#0f0;} .err{color:#f44;} .inf{color:#ff0;}
+div.log{padding:6px 0;border-bottom:1px solid #333;}
+</style>
+</head>
+<body>
+<h2 style="color:#fff;margin-bottom:16px">接続テスト</h2>
+<button onclick="test1()">① corsproxy.io テスト</button>
+<button onclick="test2()">② 直接fetchテスト</button>
+<button onclick="test3()">③ タイムアウトテスト</button>
+<div id="log"></div>
+<script>
+function log(msg,cls){
+  const d=document.createElement('div');
+  d.className='log '+(cls||'');
+  d.textContent=new Date().toLocaleTimeString()+' '+msg;
+  document.getElementById('log').prepend(d);
+}
+
+async function test1(){
+  log('corsproxy.io テスト開始...','inf');
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),8000);
+  try{
+    const url='https://query1.finance.yahoo.com/v8/finance/chart/NKD=F?interval=1d&range=5d';
+    const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:ctrl.signal});
+    clearTimeout(t);
+    const j=await r.json();
+    const c=j?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.filter(Boolean)||[];
+    if(c.length>0) log('✅ OK: '+c.length+'本 最新='+c.at(-1),'ok');
+    else log('⚠ データなし: status='+r.status,'err');
+  }catch(e){
+    clearTimeout(t);
+    log('❌ NG: '+e.name+': '+e.message,'err');
+  }
+}
+
+async function test2(){
+  log('直接fetch テスト開始...','inf');
+  try{
+    const r=await fetch('https://httpbin.org/get',{signal:AbortSignal.timeout?AbortSignal.timeout(5000):undefined});
+    log('✅ 直接fetch OK: '+r.status,'ok');
+  }catch(e){
+    log('❌ 直接fetch NG: '+e.name+': '+e.message,'err');
+  }
+}
+
+async function test3(){
+  log('タイムアウトテスト（3秒）...','inf');
+  const ctrl=new AbortController();
+  setTimeout(()=>ctrl.abort(),3000);
+  try{
+    await fetch('https://httpbin.org/delay/10',{signal:ctrl.signal});
+    log('❌ タイムアウトしなかった','err');
+  }catch(e){
+    if(e.name==='AbortError') log('✅ タイムアウト正常動作: '+e.name,'ok');
+    else log('⚠ 別エラー: '+e.name+': '+e.message,'err');
+  }
+}
+</script>
+</body></html>
