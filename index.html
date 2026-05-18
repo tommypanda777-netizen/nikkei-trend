@@ -761,10 +761,13 @@ async function loadData() {
       // Trendline alerts
       '<div class="panel">'+
         '<div class="sec">トレンドライン ブレイク検出</div>'+
+        tlAlertHTML(trendlineAnalysis(m5 !== m15 ? m5 : null),'5m')+
         tlAlertHTML(trendlineAnalysis(m15),'15m')+
         tlAlertHTML(trendlineAnalysis(h1),'1H')+
         tlAlertHTML(tlD,'D')+
-        '<div class="chart-wrap"><canvas id="ch15m"></canvas></div>'+
+        '<div class="chart-wrap"><canvas id="ch5m"></canvas></div>'+
+        '<div class="chart-wrap" style="margin-top:8px"><canvas id="ch15m"></canvas></div>'+
+        '<div class="chart-wrap" style="margin-top:8px"><canvas id="ch1h"></canvas></div>'+
         '<div class="chart-wrap" style="margin-top:8px"><canvas id="chD"></canvas></div>'+
       '</div>'+
 
@@ -886,8 +889,28 @@ async function loadData() {
 
     // draw charts
     requestAnimationFrame(()=>{
-      drawChart('ch15m',m15,trendlineAnalysis(m15),'N225f '+BASE_TF.toUpperCase());
-      drawChart('chD',d1,tlD,'N225f D');
+      if(m5 !== m15) {
+        drawChart('ch5m', m5, trendlineAnalysis(m5), 'N225f 5m');
+      } else {
+        const c5 = document.getElementById('ch5m');
+        if(c5) {
+          const dpr = window.devicePixelRatio||1;
+          c5.width = c5.offsetWidth * dpr;
+          c5.height = 60 * dpr;
+          c5.style.height = '60px';
+          const ctx = c5.getContext('2d');
+          ctx.scale(dpr, dpr);
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillRect(0, 0, c5.offsetWidth, 60);
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx.font = 'bold 11px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('N225f 5m — データなし', c5.offsetWidth/2, 34);
+        }
+      }
+      drawChart('ch15m', m15, trendlineAnalysis(m15), 'N225f 15m');
+      drawChart('ch1h',  h1,  trendlineAnalysis(h1),  'N225f 1H');
+      drawChart('chD',   d1,  tlD,                    'N225f D');
     });
 
     renderCycList();
