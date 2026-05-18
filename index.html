@@ -366,35 +366,107 @@ function pivots(tf, lb=3) {
   return {ph,pl};
 }
 
-function trendlineAnalysis(tf) {
+// ① 3点以上が乗っているラインを検証して最良のものを返す
+function bestTrendline(pts, n, atrVal, isRes) {
+  if(pts.length < 2) return null;
+  let best = null, bestScore = 0;
+
+  // 直近の点から2点を選び、他の点がどれだけ乗っているか検証
+  for(let a = pts.length-1; a >= Math.max(0, pts.length-6); a--) {
+    for(let b = a-1; b >= Math.max(0, a-6); b--) {
+      const p1=pts[b], p2=pts[a];
+      if(p1.idx===p2.idx) continue;
+      const slope=(p2.price-p1.price)/(p2.idx-p1.idx);
+      const tol = atrVal * 0.3;
+      let touches = 2;
+      // 他のピボットがライン上に乗っているか確認
+      for(let c=0; c<pts.length; c++){
+        if(c===a||c===b) continue;
+        const expected = p1.price + slope*(pts[c].idx-p1.idx);
+        if(Math.abs(pts[c].price - expected) < tol) touches++;
+      }
+      const val = p2.price + slope*(n-p2.idx);
+      // スコア：タッチ数 + 直近性を重視
+      const score = touches * 10 + (a / pts.length) * 5;
+      if(touches >= 2 && score > bestScore) {
+        bestScore = score;
+        best = {p1, p2, slope, val, rising:slope>0, touches};
+      }
+    }
+  }
+  return best;
+}
+
+// ② 水平線：直近の重要な高値・安値
+function horizontalLevels(tf, atrVal) {
+  const n = tf.closes.length;
+  const {ph, pl} = pivots(tf, 5); // 少し広めのlookbackで重要な山谷
+  const cur = tf.closes[n-1];
+  const tol = atrVal * 0.5;
+
+  // 現在値より上の最近の高値（レジスタンス）
+  const resH = ph.filter(p => p.price > cur + tol)
+    .sort((a,b) => Math.abs(a.price-cur) - Math.abs(b.price-cur))[0] || null;
+
+  // 現在値より下の最近の安値（サポート）
+  const supL = pl.filter(p => p.price < cur - tol)
+    .sort((a,b) => Math.abs(a.price-cur) - Math.abs(b.price-cur))[0] || null;
+
+  return {
+    hRes: resH ? resH.price : null,
+    hSup: supL ? supL.price : null,
+  };
+}
+
+function trendlineAnalysis(tf, dailyTf=null) {
   if(!tf||tf.closes.length<10) return null;
   const a = atr(tf,10);
   const {ph,pl} = pivots(tf,3);
   const n = tf.closes.length-1;
   const cur = tf.closes[n];
 
-  function project(pts) {
-    if(pts.length<2) return null;
-    const p1=pts[pts.length-2], p2=pts[pts.length-1];
-    if(p1.idx===p2.idx) return null;
-    const slope=(p2.price-p1.price)/(p2.idx-p1.idx);
-    return {p1,p2,slope,val:p2.price+slope*(n-p2.idx),rising:slope>0};
+  // ① 3点検証済みのトレンドライン
+  const res = bestTrendline(ph, n, a, true);
+  const sup = bestTrendline(pl, n, a, false);
+
+  // ② 水平線
+  const hLevels = horizontalLevels(tf, a);
+
+  // ④ 日足ラインの引き継ぎ
+  let dailyRes = null, dailySup = null;
+  if(dailyTf && dailyTf !== tf) {
+    const da = atr(dailyTf, 10);
+    const {ph:dph, pl:dpl} = pivots(dailyTf, 5);
+    const dn = dailyTf.closes.length-1;
+    dailyRes = bestTrendline(dph, dn, da, true);
+    dailySup = bestTrendline(dpl, dn, da, false);
   }
 
-  const res=project(ph), sup=project(pl);
-  const thr=a*0.15;
+  const thr = a * 0.15;
 
-  let alert={type:'ok',icon:'✅',title:'ライン内側',sub:'ブレイクなし'};
-  if(sup && cur < sup.val-thr){
-    alert={type:'bd',icon:'🔵',title:'サポート割れ！',sub:'S: '+Math.round(sup.val).toLocaleString()+' を下抜け'};
-  } else if(res && cur > res.val+thr){
-    alert={type:'bu',icon:'🔴',title:'レジスタンス突破！',sub:'R: '+Math.round(res.val).toLocaleString()+' を上抜け'};
-  } else if(sup && Math.abs(cur-sup.val)<thr*2){
-    alert={type:'ok',icon:'⚠️',title:'サポート付近',sub:Math.round(sup.val).toLocaleString()+' 付近 監視中'};
-  } else if(res && Math.abs(cur-res.val)<thr*2){
-    alert={type:'ok',icon:'⚠️',title:'レジスタンス付近',sub:Math.round(res.val).toLocaleString()+' 付近 監視中'};
+  // ブレイク判定（トレンドライン・水平線どちらも）
+  let alert = {type:'ok', icon:'✅', title:'ライン内側', sub:'ブレイクなし'};
+
+  const supVal  = sup ? sup.val : null;
+  const resVal  = res ? res.val : null;
+  const hSupVal = hLevels.hSup;
+  const hResVal = hLevels.hRes;
+
+  // 最も近い有効なサポート・レジスタンスを優先
+  const activeSup = [supVal, hSupVal].filter(v=>v!=null).sort((a,b)=>b-a)[0];
+  const activeRes = [resVal, hResVal].filter(v=>v!=null).sort((a,b)=>a-b)[0];
+
+  if(activeSup && cur < activeSup - thr){
+    alert={type:'bd',icon:'🔵',title:'サポート割れ！',sub:'S: '+Math.round(activeSup).toLocaleString()+' を下抜け'};
+  } else if(activeRes && cur > activeRes + thr){
+    alert={type:'bu',icon:'🔴',title:'レジスタンス突破！',sub:'R: '+Math.round(activeRes).toLocaleString()+' を上抜け'};
+  } else if(activeSup && Math.abs(cur-activeSup)<thr*2){
+    alert={type:'ok',icon:'⚠️',title:'サポート付近',sub:Math.round(activeSup).toLocaleString()+' 付近 監視中'};
+  } else if(activeRes && Math.abs(cur-activeRes)<thr*2){
+    alert={type:'ok',icon:'⚠️',title:'レジスタンス付近',sub:Math.round(activeRes).toLocaleString()+' 付近 監視中'};
   }
-  return {res,sup,alert,cur};
+
+  return {res, sup, hLevels, dailyRes, dailySup, alert, cur, atrVal:a};
 }
 
 function fibs(high,low){
@@ -536,17 +608,46 @@ function drawChart(id, tf, tl, label) {
   }
   // trendlines
   if(tl){
-    const drawL=(line,color)=>{
+    const drawL=(line,color,dash)=>{
       if(!line) return;
       const {p1,p2,val}=line;
       const x1=x(Math.max(0,n-1-(tf.closes.length-1-p1.idx)));
-      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash(dash||[]);
       ctx.beginPath();ctx.moveTo(x1,y(p1.price));ctx.lineTo(x(n-1),y(val));ctx.stroke();
       ctx.setLineDash([]);ctx.fillStyle=color;ctx.font='bold 9px monospace';
       ctx.fillText(Math.round(val).toLocaleString(),W-pad.r+2,y(val)+3);
+      // タッチ数表示
+      if(line.touches>2){
+        ctx.font='8px monospace';
+        ctx.fillText('×'+line.touches, W-pad.r+2, y(val)+12);
+      }
       ctx.restore();
     };
-    drawL(tl.res,'#ff3d5a'); drawL(tl.sup,'#00c4ff');
+    // ② 水平線（破線）
+    const drawH=(price,color)=>{
+      if(!price) return;
+      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([3,4]);ctx.globalAlpha=0.6;
+      ctx.beginPath();ctx.moveTo(pad.l,y(price));ctx.lineTo(W-pad.r,y(price));ctx.stroke();
+      ctx.setLineDash([]);ctx.globalAlpha=1;ctx.fillStyle=color;ctx.font='8px monospace';
+      ctx.fillText(Math.round(price).toLocaleString(),W-pad.r+2,y(price)+3);
+      ctx.restore();
+    };
+    // ④ 日足ライン（点線・薄め）
+    const drawDailyL=(line,color)=>{
+      if(!line) return;
+      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([2,5]);ctx.globalAlpha=0.45;
+      ctx.beginPath();ctx.moveTo(pad.l,y(line.val));ctx.lineTo(W-pad.r,y(line.val));ctx.stroke();
+      ctx.setLineDash([]);ctx.globalAlpha=0.5;ctx.fillStyle=color;ctx.font='8px monospace';
+      ctx.fillText('D:'+Math.round(line.val).toLocaleString(),W-pad.r+2,y(line.val)+3);
+      ctx.restore();
+    };
+
+    drawL(tl.res,'#ff3d5a',[4,3]);
+    drawL(tl.sup,'#00c4ff',[4,3]);
+    drawH(tl.hLevels?.hRes,'rgba(255,100,100,0.8)');
+    drawH(tl.hLevels?.hSup,'rgba(100,200,255,0.8)');
+    drawDailyL(tl.dailyRes,'#ff3d5a');
+    drawDailyL(tl.dailySup,'#00c4ff');
     // current price
     const cp=closes[n-1];
     ctx.save();ctx.strokeStyle='rgba(245,200,66,.6)';ctx.lineWidth=.8;ctx.setLineDash([2,3]);
@@ -600,9 +701,11 @@ async function loadData() {
     else if(bearN>=3){oCls='bear';oMain='🔵 下方向優勢';oSub='青が揃っています — 売り優勢';}
     else{oCls='mixed';oMain='⚡ 混在・様子見';oSub='買い'+bullN+' / 売り'+bearN+' — 方向感なし';}
 
-    // trendlines
-    const tlBase=trendlineAnalysis(base);
-    const tlD=trendlineAnalysis(d1);
+    // trendlines（日足データを引き継ぎ）
+    const tlM5  = trendlineAnalysis(m5 !== m15 ? m5 : null, d1);
+    const tlM15 = trendlineAnalysis(m15, d1);
+    const tlH1  = trendlineAnalysis(h1, d1);
+    const tlD   = trendlineAnalysis(d1);
 
     // MA lines
     const maLines=[];
@@ -761,9 +864,9 @@ async function loadData() {
       // Trendline alerts
       '<div class="panel">'+
         '<div class="sec">トレンドライン ブレイク検出</div>'+
-        tlAlertHTML(trendlineAnalysis(m5 !== m15 ? m5 : null),'5m')+
-        tlAlertHTML(trendlineAnalysis(m15),'15m')+
-        tlAlertHTML(trendlineAnalysis(h1),'1H')+
+        tlAlertHTML(tlM5,'5m')+
+        tlAlertHTML(tlM15,'15m')+
+        tlAlertHTML(tlH1,'1H')+
         tlAlertHTML(tlD,'D')+
         '<div class="chart-wrap"><canvas id="ch5m"></canvas></div>'+
         '<div class="chart-wrap" style="margin-top:8px"><canvas id="ch15m"></canvas></div>'+
@@ -890,7 +993,7 @@ async function loadData() {
     // draw charts
     requestAnimationFrame(()=>{
       if(m5 !== m15) {
-        drawChart('ch5m', m5, trendlineAnalysis(m5), 'N225f 5m');
+        drawChart('ch5m', m5, tlM5, 'N225f 5m');
       } else {
         const c5 = document.getElementById('ch5m');
         if(c5) {
@@ -908,9 +1011,9 @@ async function loadData() {
           ctx.fillText('N225f 5m — データなし', c5.offsetWidth/2, 34);
         }
       }
-      drawChart('ch15m', m15, trendlineAnalysis(m15), 'N225f 15m');
-      drawChart('ch1h',  h1,  trendlineAnalysis(h1),  'N225f 1H');
-      drawChart('chD',   d1,  tlD,                    'N225f D');
+      drawChart('ch15m', m15, tlM15, 'N225f 15m');
+      drawChart('ch1h',  h1,  tlH1,  'N225f 1H');
+      drawChart('chD',   d1,  tlD,   'N225f D');
     });
 
     renderCycList();
