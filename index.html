@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1137,41 +1136,37 @@ function getPrevLabel(tf) {
 
 
 // =============================================
-// データ取得 — corsproxy.io のみ使用（Safari動作確認済み）
+// データ取得 — corsproxy.io（Safari確認済み）
 // =============================================
 
 async function fetchViaCorsProxy(url) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 6000);
+  const timer = setTimeout(() => controller.abort(), 7000);
   try {
     const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
     const res = await fetch(proxyUrl, { signal: controller.signal });
     clearTimeout(timer);
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+    return await res.json();
   } catch(e) {
     clearTimeout(timer);
     throw e;
   }
 }
 
-async function fetchYahooData(symbol, interval, range) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=false`;
-  const data = await fetchViaCorsProxy(url);
-  const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.filter(Boolean) || [];
-  if (closes.length < 2) throw new Error('データ不足: ' + symbol);
-  data._symbol = symbol;
-  return data;
-}
-
 function extractTF(data) {
   if (!data) return null;
-  const q = data?.chart?.result?.[0]?.indicators?.quote?.[0];
-  if (!q) return null;
-  const closes = q.close?.filter(Boolean) || [];
-  const highs  = q.high?.filter(Boolean)  || closes.map(c => c * 1.002);
-  const lows   = q.low?.filter(Boolean)   || closes.map(c => c * 0.998);
-  return closes.length > 3 ? { closes, highs, lows, symbol: data._symbol || '?' } : null;
+  try {
+    const q = data?.chart?.result?.[0]?.indicators?.quote?.[0];
+    if (!q) return null;
+    const closes = (q.close || []).filter(v => v != null && !isNaN(v));
+    const highs  = (q.high  || []).filter(v => v != null && !isNaN(v));
+    const lows   = (q.low   || []).filter(v => v != null && !isNaN(v));
+    if (closes.length < 2) return null;
+    const h = highs.length === closes.length ? highs : closes.map(c => c * 1.002);
+    const l = lows.length  === closes.length ? lows  : closes.map(c => c * 0.998);
+    return { closes, highs: h, lows: l, symbol: data._symbol || '?' };
+  } catch { return null; }
 }
 
 function make4H(tf1H) {
@@ -1185,40 +1180,42 @@ function make4H(tf1H) {
   return { closes: c, highs: h, lows: l };
 }
 
+async function safeYahoo(sym, interval, range) {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=${interval}&range=${range}&includePrePost=false`;
+    const data = await fetchViaCorsProxy(url);
+    data._symbol = sym;
+    return data;
+  } catch { return null; }
+}
+
 async function fetchMarketData() {
   const inst = INSTRUMENTS[BASE_INSTRUMENT] || INSTRUMENTS['NKD=F'];
-  const mainSym = inst.symbols[0];
+  const sym = inst.symbols[0];
 
-  // 必須データを並列取得
-  const [d1raw, h1raw, m15raw] = await Promise.all([
-    fetchYahooData(mainSym, '1d',  '6mo'),
-    fetchYahooData(mainSym, '1h',  '5d').catch(() => null),
-    fetchYahooData(mainSym, '15m', '2d').catch(() => null),
-  ]);
+  // 全て独立して取得（1つが失敗しても他に影響しない）
+  const d1raw  = await safeYahoo(sym, '1d',  '6mo');
+  if (!d1raw) throw new Error('日足データを取得できませんでした。通信状況を確認してください。');
 
-  // オプションデータ
-  const [m5raw, m30raw] = await Promise.all([
-    fetchYahooData(mainSym, '5m',  '1d').catch(() => null),
-    fetchYahooData(mainSym, '30m', '5d').catch(() => null),
-  ]);
+  const h1raw  = await safeYahoo(sym, '1h',  '5d');
+  const m15raw = await safeYahoo(sym, '15m', '2d');
+  const m5raw  = await safeYahoo(sym, '5m',  '1d');
+  const m30raw = await safeYahoo(sym, '30m', '5d');
 
   const tf1D  = extractTF(d1raw);
-  const tf1H  = extractTF(h1raw);
-  const tf15m = extractTF(m15raw) || tf1H || tf1D;
+  const tf1H  = extractTF(h1raw)  || tf1D;
+  const tf15m = extractTF(m15raw) || tf1H;
   const tf5m  = extractTF(m5raw)  || tf15m;
   const tf30m = extractTF(m30raw) || tf15m;
   const tf4H  = make4H(tf1H) || tf1D;
-  const tfWk  = null;
-
-  if (!tf1D) throw new Error('日足データの取得に失敗しました');
 
   return {
-    tf1D, tf1H: tf1H || tf1D, tf4H,
-    tf15m, tf5m, tf30m, tfWk,
+    tf1D, tf1H, tf4H, tf15m, tf5m, tf30m, tfWk: null,
     currentPrice: tf15m.closes.at(-1),
-    prevClose:    tf1D.closes.at(-2),
+    prevClose:    tf1D.closes.at(-2) || tf1D.closes.at(-1),
   };
 }
+
 
 
 const CYCLE_KEY_BASE = 'n225_cycle_dates';
