@@ -1186,7 +1186,8 @@ async function loadData() {
       '</div>'+
       panelSettings.filter(p=>p.on).map(p=>panelHTMLs[p.id]||'').join('');
 
-    // draw chartsionFrame(()=>{
+        // draw charts
+    requestAnimationFrame(()=>{
       if(m5 !== m15) {
         drawChart('ch5m', m5, tlM5, 'N225f 5m');
       } else {
