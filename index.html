@@ -1242,9 +1242,10 @@ async function loadData() {
       panelSettings.filter(p=>p.on).map(p=>panelHTMLs[p.id]||'').join('');
 
         // draw charts
+    const _label = inst.label; // チャートラベル用
     requestAnimationFrame(()=>{
       if(m5 !== m15) {
-        drawChart('ch5m', m5, tlM5, instLabel+' 5m');
+        drawChart('ch5m', m5, tlM5, _label+' 5m');
       } else {
         const c5 = document.getElementById('ch5m');
         if(c5) {
@@ -1259,12 +1260,12 @@ async function loadData() {
           ctx.fillStyle = 'rgba(255,255,255,0.2)';
           ctx.font = 'bold 11px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText(instLabel+' 5m — データなし', c5.offsetWidth/2, 34);
+          ctx.fillText(_label+' 5m — データなし', c5.offsetWidth/2, 34);
         }
       }
-      drawChart('ch15m', m15, tlM15, instLabel+' 15m');
-      drawChart('ch1h',  h1,  tlH1,  instLabel+' 1H');
-      drawChart('chD',   d1,  tlD,   instLabel+' D');
+      drawChart('ch15m', m15, tlM15, _label+' 15m');
+      drawChart('ch1h',  h1,  tlH1,  _label+' 1H');
+      drawChart('chD',   d1,  tlD,   _label+' D');
     });
 
     renderCycList();
