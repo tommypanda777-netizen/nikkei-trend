@@ -455,7 +455,6 @@ function bestTrendline(pts, n, atrVal, isRes) {
   if(pts.length < 2) return null;
   let best = null, bestScore = 0;
 
-  // 直近の点から2点を選び、他の点がどれだけ乗っているか検証
   for(let a = pts.length-1; a >= Math.max(0, pts.length-6); a--) {
     for(let b = a-1; b >= Math.max(0, a-6); b--) {
       const p1=pts[b], p2=pts[a];
@@ -463,14 +462,12 @@ function bestTrendline(pts, n, atrVal, isRes) {
       const slope=(p2.price-p1.price)/(p2.idx-p1.idx);
       const tol = atrVal * 0.3;
       let touches = 2;
-      // 他のピボットがライン上に乗っているか確認
       for(let c=0; c<pts.length; c++){
         if(c===a||c===b) continue;
         const expected = p1.price + slope*(pts[c].idx-p1.idx);
         if(Math.abs(pts[c].price - expected) < tol) touches++;
       }
       const val = p2.price + slope*(n-p2.idx);
-      // スコア：タッチ数 + 直近性を重視
       const score = touches * 10 + (a / pts.length) * 5;
       if(touches >= 2 && score > bestScore) {
         bestScore = score;
@@ -479,6 +476,48 @@ function bestTrendline(pts, n, atrVal, isRes) {
     }
   }
   return best;
+}
+
+// 最小二乗法による回帰トレンドライン（短期足向け）
+function regressionTrendline(prices, indices, n) {
+  const len = prices.length;
+  if(len < 3) return null;
+  let sumX=0, sumY=0, sumXY=0, sumX2=0;
+  for(let i=0;i<len;i++){
+    sumX  += indices[i];
+    sumY  += prices[i];
+    sumXY += indices[i]*prices[i];
+    sumX2 += indices[i]*indices[i];
+  }
+  const denom = len*sumX2 - sumX*sumX;
+  if(Math.abs(denom) < 1e-10) return null;
+  const slope = (len*sumXY - sumX*sumY) / denom;
+  const intercept = (sumY - slope*sumX) / len;
+  const val = slope*n + intercept;
+  const p1idx = indices[0], p2idx = indices[len-1];
+  return {
+    p1: {idx:p1idx, price: slope*p1idx+intercept},
+    p2: {idx:p2idx, price: slope*p2idx+intercept},
+    slope, val, rising:slope>0, touches:len, isRegression:true
+  };
+}
+
+// 短期足用：直近の戻り高値・安値から回帰ラインを計算
+function shortTermTrendlines(tf, atrVal) {
+  const n = tf.closes.length - 1;
+  const {ph, pl} = pivots(tf, 3);
+  // 直近8本のピボットに絞る
+  const recentH = ph.slice(-8);
+  const recentL = pl.slice(-8);
+
+  const resLine = recentH.length >= 2
+    ? regressionTrendline(recentH.map(p=>p.price), recentH.map(p=>p.idx), n)
+    : null;
+  const supLine = recentL.length >= 2
+    ? regressionTrendline(recentL.map(p=>p.price), recentL.map(p=>p.idx), n)
+    : null;
+
+  return { resLine, supLine };
 }
 
 // ② 水平線：直近の重要な高値・安値
@@ -622,8 +661,12 @@ function trendlineAnalysis(tf, dailyTf=null) {
     }
   }
 
+  // 短期足向け回帰ライン（5m/15m/1H）
+  const stLines = !isDaily ? shortTermTrendlines(tf, a) : {resLine:null, supLine:null};
+
   return {res, sup, hLevels, dailyRes, dailySup,
           prevDayH, prevDayL, activeSup, activeRes,
+          stLines,
           alert, cur, atrVal:a};
 }
 
@@ -802,6 +845,11 @@ function drawChart(id, tf, tl, label) {
 
     drawL(tl.res,'#ff3d5a',[4,3]);
     drawL(tl.sup,'#00c4ff',[4,3]);
+    // 回帰ライン（短期トレンド・細い実線）
+    if(tl.stLines) {
+      drawL(tl.stLines.resLine,'rgba(255,140,80,0.9)',[]);
+      drawL(tl.stLines.supLine,'rgba(80,200,255,0.9)',[]);
+    }
     drawH(tl.hLevels?.hRes,'rgba(255,100,100,0.8)');
     drawH(tl.hLevels?.hSup,'rgba(100,200,255,0.8)');
     // ③ 前日高値・安値（黄色点線）
@@ -1291,7 +1339,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // =============================================
 
 const PANELS = [
-  { id:'sentiment',  name:'マーケットセンチメント', on:true },
   { id:'malines',    name:'MAライン抵抗値',          on:true },
   { id:'mtf',        name:'MTF STATUS',              on:true },
   { id:'trendline',  name:'トレンドライン検出',       on:true },
@@ -1299,6 +1346,7 @@ const PANELS = [
   { id:'fib',        name:'フィボナッチ',             on:true },
   { id:'deviation',  name:'MA乖離率',                on:true },
   { id:'cycle',      name:'変化日サイクル',           on:true },
+  { id:'sentiment',  name:'マーケットセンチメント', on:true },
 ];
 
 const PANELS_KEY = 'panel_settings';
