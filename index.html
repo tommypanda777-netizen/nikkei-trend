@@ -1339,12 +1339,8 @@ function renderPanelList() {
   const el = document.getElementById('panelOrderList');
   if(!el) return;
   el.innerHTML = panelSettings.map((p,i) =>
-    '<div class="panel-item" draggable="true" data-idx="'+i+'" '+
-      'ondragstart="dragStart(event,'+i+')" '+
-      'ondragover="dragOver(event,'+i+')" '+
-      'ondrop="dragDrop(event,'+i+')" '+
-      'ondragend="dragEnd()">'+
-      '<div class="panel-item-drag">☰</div>'+
+    '<div class="panel-item" data-idx="'+i+'">'+
+      '<div class="panel-item-drag" ontouchstart="touchDragStart(event,'+i+')" onmousedown="touchDragStart(event,'+i+')">☰</div>'+
       '<div class="panel-item-name">'+p.name+'</div>'+
       '<button class="panel-item-toggle '+(p.on?'on':'')+'" onclick="togglePanel('+i+')"></button>'+
     '</div>'
@@ -1358,20 +1354,79 @@ function togglePanel(i) {
   loadData();
 }
 
-let dragSrc = null;
-function dragStart(e, i) { dragSrc=i; e.target.classList.add('dragging'); }
-function dragOver(e, i)  { e.preventDefault(); document.querySelectorAll('.panel-item').forEach(el=>el.classList.remove('drag-over')); e.currentTarget.classList.add('drag-over'); }
-function dragEnd()       { document.querySelectorAll('.panel-item').forEach(el=>el.classList.remove('dragging','drag-over')); }
-function dragDrop(e, i)  {
+// タッチ対応ドラッグ
+let _dragSrc = null, _dragEl = null, _dragClone = null, _dragOffY = 0;
+
+function touchDragStart(e, i) {
   e.preventDefault();
-  if(dragSrc===null||dragSrc===i) return;
-  const arr=[...panelSettings];
-  const [moved]=arr.splice(dragSrc,1);
-  arr.splice(i,0,moved);
-  panelSettings=arr;
-  savePanelSettings(panelSettings);
-  renderPanelList();
-  loadData();
+  _dragSrc = i;
+  const item = e.currentTarget.closest('.panel-item');
+  const rect = item.getBoundingClientRect();
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  _dragOffY = clientY - rect.top;
+
+  // 掴んだ要素のクローンを作って画面上に追従させる
+  _dragClone = item.cloneNode(true);
+  _dragClone.style.cssText = 'position:fixed;left:'+rect.left+'px;width:'+rect.width+'px;'+
+    'background:var(--surface2);border:1px solid var(--gold);border-radius:5px;'+
+    'opacity:0.9;z-index:9999;pointer-events:none;top:'+(clientY-_dragOffY)+'px;';
+  document.body.appendChild(_dragClone);
+  item.style.opacity = '0.3';
+  _dragEl = item;
+
+  document.addEventListener('touchmove', touchDragMove, {passive:false});
+  document.addEventListener('touchend',  touchDragEnd);
+  document.addEventListener('mousemove', touchDragMove);
+  document.addEventListener('mouseup',   touchDragEnd);
+}
+
+function touchDragMove(e) {
+  e.preventDefault();
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  if(_dragClone) _dragClone.style.top = (clientY - _dragOffY) + 'px';
+
+  // どのアイテムの上にいるか判定
+  const items = document.querySelectorAll('.panel-item');
+  items.forEach(el => el.classList.remove('drag-over'));
+  items.forEach(el => {
+    const r = el.getBoundingClientRect();
+    if(clientY >= r.top && clientY <= r.bottom && el !== _dragEl) {
+      el.classList.add('drag-over');
+    }
+  });
+}
+
+function touchDragEnd(e) {
+  document.removeEventListener('touchmove', touchDragMove);
+  document.removeEventListener('touchend',  touchDragEnd);
+  document.removeEventListener('mousemove', touchDragMove);
+  document.removeEventListener('mouseup',   touchDragEnd);
+
+  if(_dragClone) { _dragClone.remove(); _dragClone = null; }
+  if(_dragEl) { _dragEl.style.opacity = ''; _dragEl = null; }
+
+  // ドロップ先を探す
+  const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+  const items = document.querySelectorAll('.panel-item');
+  let dropIdx = null;
+  items.forEach(el => {
+    el.classList.remove('drag-over');
+    const r = el.getBoundingClientRect();
+    if(clientY >= r.top && clientY <= r.bottom) {
+      dropIdx = parseInt(el.dataset.idx);
+    }
+  });
+
+  if(dropIdx !== null && dropIdx !== _dragSrc) {
+    const arr = [...panelSettings];
+    const [moved] = arr.splice(_dragSrc, 1);
+    arr.splice(dropIdx, 0, moved);
+    panelSettings = arr;
+    savePanelSettings(panelSettings);
+    renderPanelList();
+    loadData();
+  }
+  _dragSrc = null;
 }
 
 // パネルIDからHTMLを返す（loadData内で使用）
