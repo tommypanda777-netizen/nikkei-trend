@@ -865,8 +865,15 @@ function drawChart(id, tf, tl, label) {
     ctx.fillText(Math.round(cp).toLocaleString(),W-pad.r+2,y(cp)+3);
     ctx.restore();
   }
-  ctx.fillStyle='rgba(139,160,184,.7)';ctx.font='bold 9px monospace';
-  ctx.fillText(label,pad.l+2,pad.t+10);
+  // ラベルを最前面・白色で描画
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  const lw=ctx.measureText(label).width;
+  ctx.fillRect(pad.l,pad.t,lw+8,14);
+  ctx.fillStyle='#ffffff';
+  ctx.font='bold 9px monospace';
+  ctx.fillText(label,pad.l+4,pad.t+10);
+  ctx.restore();
 }
 
 // ===== RENDER =====
@@ -1237,7 +1244,7 @@ async function loadData() {
         // draw charts
     requestAnimationFrame(()=>{
       if(m5 !== m15) {
-        drawChart('ch5m', m5, tlM5, 'N225f 5m');
+        drawChart('ch5m', m5, tlM5, instLabel+' 5m');
       } else {
         const c5 = document.getElementById('ch5m');
         if(c5) {
@@ -1252,12 +1259,12 @@ async function loadData() {
           ctx.fillStyle = 'rgba(255,255,255,0.2)';
           ctx.font = 'bold 11px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText('N225f 5m — データなし', c5.offsetWidth/2, 34);
+          ctx.fillText(instLabel+' 5m — データなし', c5.offsetWidth/2, 34);
         }
       }
-      drawChart('ch15m', m15, tlM15, 'N225f 15m');
-      drawChart('ch1h',  h1,  tlH1,  'N225f 1H');
-      drawChart('chD',   d1,  tlD,   'N225f D');
+      drawChart('ch15m', m15, tlM15, instLabel+' 15m');
+      drawChart('ch1h',  h1,  tlH1,  instLabel+' 1H');
+      drawChart('chD',   d1,  tlD,   instLabel+' D');
     });
 
     renderCycList();
