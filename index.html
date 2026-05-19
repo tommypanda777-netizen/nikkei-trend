@@ -1101,7 +1101,7 @@ async function loadData() {
         '</div>'+
         [['5日MA',dev.ma5,dev.dev5],['13日MA',dev.ma13,dev.dev13],['25日MA★',dev.ma25,dev.dev25],['75日MA',dev.ma75,dev.dev75]].map(([lbl,ma,dv])=>{
           if(ma==null) return '';
-          return '<div class="dev-row" onclick="switchDev('+dv.toFixed(2)+',''+lbl+'')" style="cursor:pointer">'+
+          return '<div class="dev-row" onclick="switchDev('+dv.toFixed(2)+',\''+lbl+'\')" style="cursor:pointer">'+
             '<div class="dev-lbl">'+lbl+'</div>'+
             '<div style="font-family:var(--mono);font-size:13px">'+fmt(ma)+'</div>'+
             '<div style="font-family:var(--mono);font-size:11px;color:'+(dv>0?'var(--bull)':'var(--bear)')+'">'+pct(dv)+'</div>'+
