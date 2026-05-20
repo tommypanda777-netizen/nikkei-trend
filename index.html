@@ -1238,14 +1238,10 @@ async function loadData() {
         tlAlertHTML(tlM15,'15m')+
         tlAlertHTML(tlH1,'1H')+
         tlAlertHTML(tlD,'D')+
-        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 4px">大局チャート</div>'+
-        '<div class="chart-wrap" style="height:160px"><canvas id="chOverview" style="height:160px"></canvas></div>'+
-        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 4px">週足 (1W)</div>'+
-        '<div class="chart-wrap"><canvas id="chWk"></canvas></div>'+
-        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:8px 0 4px">3日足 (3D)</div>'+
-        '<div class="chart-wrap"><canvas id="ch3d"></canvas></div>'+
-        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:8px 0 4px">日足 (1D)</div>'+
-        '<div class="chart-wrap"><canvas id="chD"></canvas></div>'+
+        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 4px">5日間 (5D)</div>'+
+        '<div class="chart-wrap"><canvas id="ch5d"></canvas></div>'+
+        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:8px 0 4px">本日 (1D)</div>'+
+        '<div class="chart-wrap"><canvas id="ch1d"></canvas></div>'+
       '</div>';
 
     panelHTMLs['daypred'] =
@@ -1385,18 +1381,16 @@ async function loadData() {
         // draw charts
     const _label = inst.label; // チャートラベル用
     setTimeout(()=>{
-      drawChartOverview('chOverview', d1, wk, tlD, _label);
+  // 大局チャート：直近2週間（約10営業日）
+  const d1Recent = {
+    closes: d1.closes.slice(-10),
+    highs:  d1.highs.slice(-10),
+    lows:   d1.lows.slice(-10),
+  };
+  drawChartOverview('chOverview', d1Recent, null, tlD, _label);
       if(wk) drawChart('chWk', wk, null, _label+' 1W');
       else {
         const cw = document.getElementById('chWk');
-        if(cw){ cw.style.height='80px'; const ctx=cw.getContext('2d');
-          cw.width=cw.offsetWidth; cw.height=80;
-          ctx.fillStyle='#111'; ctx.fillRect(0,0,cw.offsetWidth,80);
-          ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='11px monospace'; ctx.textAlign='center';
-          ctx.fillText('週足データなし', cw.offsetWidth/2, 44); }
-      }
-      drawChart('ch3d', tf3d, null, _label+' 3D');
-      drawChart('chD',  d1,  tlD,  _label+' 1D');
     }, 150);
 
     renderCycList();
