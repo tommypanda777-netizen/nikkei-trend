@@ -1380,17 +1380,18 @@ async function loadData() {
 
         // draw charts
     const _label = inst.label; // チャートラベル用
-    setTimeout(()=>{
-  // 大局チャート：直近2週間（約10営業日）
-  const d1Recent = {
-    closes: d1.closes.slice(-10),
-    highs:  d1.highs.slice(-10),
-    lows:   d1.lows.slice(-10),
-  };
-  drawChartOverview('chOverview', d1Recent, null, tlD, _label);
-      if(wk) drawChart('chWk', wk, null, _label+' 1W');
-      else {
-        const cw = document.getElementById('chWk');
+        setTimeout(()=>{
+      // 5D：直近5日の日足データ
+      const d1_5d = {
+        closes: d1.closes.slice(-5),
+        highs:  d1.highs.slice(-5),
+        lows:   d1.lows.slice(-5),
+      };
+      const tl5d = trendlineAnalysis(d1_5d);
+      drawChart('ch5d', d1_5d, tl5d, _label+' 5D');
+      // 1D：本日の1時間足データ
+      const tl1h_today = trendlineAnalysis(h1, d1);
+      drawChart('ch1d', h1, tl1h_today, _label+' 1D');
     }, 150);
 
     renderCycList();
