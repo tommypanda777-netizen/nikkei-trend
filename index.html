@@ -451,10 +451,10 @@ function analyzeTF(tf) {
 function pivots(tf, lb=3) {
   const {highs:H,lows:L} = tf, n=H.length;
   const ph=[], pl=[];
-  for(let i=lb;i<n-lb;i++){
+  // 過去lb本の中で最高値/最安値のみをピボットとして認識（未来は参照しない）
+  for(let i=lb;i<n;i++){
     let ih=true,il=true;
-    for(let j=i-lb;j<=i+lb;j++){
-      if(j===i) continue;
+    for(let j=Math.max(0,i-lb);j<i;j++){
       if(H[j]>=H[i]) ih=false;
       if(L[j]<=L[i]) il=false;
     }
@@ -612,7 +612,9 @@ function trendlineAnalysis(tf, dailyTf=null) {
   const prev = tf.closes[Math.max(0,n-1)];
 
   const isDaily = tf.closes.length >= 60;
-  const lb = isDaily ? 10 : (tf.closes.length <= 40 ? 8 : 3);
+  // lookback：日足=10日前、短期足=直前24時間相当の本数
+  // 1H=24本、15m=96本、5m=288本 → いずれも「24時間前」を上限に
+  const lb = isDaily ? 10 : Math.min(24, Math.floor(tf.closes.length / 4));
 
   // 短期足は直近半分のデータだけ使う（古いデータで誤ったラインが引かれるのを防ぐ）
   const tfRecent = (!isDaily && tf.closes.length > 20) ? {
@@ -1238,9 +1240,6 @@ async function loadData() {
         tlAlertHTML(tlM15,'15m')+
         tlAlertHTML(tlH1,'1H')+
         tlAlertHTML(tlD,'D')+
-        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 4px">5日間 (5D)</div>'+
-        '<div class="chart-wrap"><canvas id="ch5d"></canvas></div>'+
-        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:8px 0 4px">本日 (1D)</div>'+
         '<div class="chart-wrap"><canvas id="ch1d"></canvas></div>'+
       '</div>';
 
@@ -1381,15 +1380,7 @@ async function loadData() {
         // draw charts
     const _label = inst.label; // チャートラベル用
         setTimeout(()=>{
-      // 5D：直近5日の日足データ
-      const d1_5d = {
-        closes: d1.closes.slice(-5),
-        highs:  d1.highs.slice(-5),
-        lows:   d1.lows.slice(-5),
-      };
-      const tl5d = trendlineAnalysis(d1_5d);
-      drawChart('ch5d', d1_5d, tl5d, _label+' 5D');
-      // 1D：本日の1時間足データ
+      // 1D：1時間足（全データ使用、lookback大きめ）
       const tl1h_today = trendlineAnalysis(h1, d1);
       drawChart('ch1d', h1, tl1h_today, _label+' 1D');
     }, 150);
