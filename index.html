@@ -502,20 +502,38 @@ function regressionTrendline(prices, indices, n) {
   };
 }
 
-// 短期足用：直近の戻り高値・安値から回帰ラインを計算
+// 短期足用：直近の戻り高値から回帰ライン、安値は水平線
 function shortTermTrendlines(tf, atrVal) {
   const n = tf.closes.length - 1;
   const {ph, pl} = pivots(tf, 3);
-  // 直近8本のピボットに絞る
   const recentH = ph.slice(-8);
-  const recentL = pl.slice(-8);
+  const recentL = pl.slice(-6);
 
+  // レジスタンス：回帰ライン（下降トレンドを捉える）
   const resLine = recentH.length >= 2
     ? regressionTrendline(recentH.map(p=>p.price), recentH.map(p=>p.idx), n)
     : null;
-  const supLine = recentL.length >= 2
-    ? regressionTrendline(recentL.map(p=>p.price), recentL.map(p=>p.idx), n)
-    : null;
+
+  // サポート：直近の安値クラスターから水平線（ディセンディングトライアングルのフラットな底）
+  let supLine = null;
+  if(recentL.length >= 2) {
+    // 安値の中央値付近に集まっているものをクラスタリング
+    const sorted = [...recentL].sort((a,b)=>a.price-b.price);
+    const median = sorted[Math.floor(sorted.length/2)].price;
+    const tol = atrVal * 1.5;
+    const cluster = recentL.filter(p => Math.abs(p.price-median) < tol);
+    if(cluster.length >= 2) {
+      const avgPrice = cluster.reduce((s,p)=>s+p.price,0)/cluster.length;
+      // 水平線として表現（傾き0）
+      const firstIdx = cluster[0].idx;
+      supLine = {
+        p1: {idx:firstIdx, price:avgPrice},
+        p2: {idx:n, price:avgPrice},
+        slope: 0, val: avgPrice, rising: false,
+        touches: cluster.length, isRegression: false, isHorizontal: true
+      };
+    }
+  }
 
   return { resLine, supLine };
 }
@@ -563,25 +581,33 @@ function trendlineAnalysis(tf, dailyTf=null) {
   if(!tf||tf.closes.length<10) return null;
   const a = atr(tf,10);
   const n = tf.closes.length-1;
-  const cur    = tf.closes[n];
-  const curH   = tf.highs[n];
-  const curL   = tf.lows[n];
-  // ① ダマシ回避：前足の終値も使って「定着」確認
-  const prev   = tf.closes[Math.max(0,n-1)];
-  const prev2  = tf.closes[Math.max(0,n-2)];
+  const cur  = tf.closes[n];
+  const prev = tf.closes[Math.max(0,n-1)];
 
   const isDaily = tf.closes.length >= 60;
   const lb = isDaily ? 10 : (tf.closes.length <= 40 ? 8 : 3);
-  const {ph,pl} = pivots(tf, lb);
+
+  // 短期足は直近半分のデータだけ使う（古いデータで誤ったラインが引かれるのを防ぐ）
+  const tfRecent = (!isDaily && tf.closes.length > 20) ? {
+    closes: tf.closes.slice(-Math.floor(tf.closes.length/2)),
+    highs:  tf.highs.slice(-Math.floor(tf.highs.length/2)),
+    lows:   tf.lows.slice(-Math.floor(tf.lows.length/2)),
+  } : tf;
+
+  const {ph,pl} = pivots(tfRecent, lb);
+  // インデックスをオフセット補正
+  const offset = tf.closes.length - tfRecent.closes.length;
+  ph.forEach(p => p.idx += offset);
+  pl.forEach(p => p.idx += offset);
 
   const res = bestTrendline(ph, n, a, true);
   const sup = bestTrendline(pl, n, a, false);
   const hLevels = horizontalLevels(tf, a, isDaily);
 
-  // ③ 前日高値・安値を水平線として追加
+  // 前日高値・安値
   let prevDayH = null, prevDayL = null;
   if(dailyTf && dailyTf.closes.length >= 2) {
-    const di = dailyTf.closes.length - 2; // 前日
+    const di = dailyTf.closes.length - 2;
     prevDayH = dailyTf.highs[di];
     prevDayL = dailyTf.lows[di];
   } else if(isDaily && tf.closes.length >= 2) {
@@ -600,7 +626,6 @@ function trendlineAnalysis(tf, dailyTf=null) {
 
   const thr = a * (isDaily ? 0.3 : 0.15);
 
-  // 全サポート・レジスタンス候補を統合
   const supCandidates = [
     sup ? {val:sup.val, touches:sup.touches||1, src:'TL'} : null,
     hLevels.hSup ? {val:hLevels.hSup, touches:hLevels.hSupTouches||1, src:'H'} : null,
@@ -613,31 +638,26 @@ function trendlineAnalysis(tf, dailyTf=null) {
     prevDayH ? {val:prevDayH, touches:1, src:'PD'} : null,
   ].filter(v=>v && v.val > cur);
 
-  // 現在値に最も近いもの
   const activeSup = supCandidates.sort((a,b)=>b.val-a.val)[0] || null;
   const activeRes = resCandidates.sort((a,b)=>a.val-b.val)[0] || null;
 
   function srcLabel(src){ return src==='PD'?'前日':src==='H'?'水平':'TL'; }
-  function touchLabel(t){ return t>=3?' ('+t+'タッチ)':t>=2?' ('+t+'タッチ)':''; }
+  function touchLabel(t){ return t>=2?' ('+t+'タッチ)':''; }
 
-  // ① ダマシ回避：現在足 + 前足の両方がラインを割っていることを確認
   let alert = {type:'ok', icon:'✅', title:'ライン内側', sub:'ブレイクなし'};
 
   if(activeSup) {
     const sv = activeSup.val;
-    const confirmed = cur < sv - thr && prev < sv; // 2本連続でライン割れ
+    const confirmed = cur < sv - thr && prev < sv;
     const approaching = Math.abs(cur-sv) < thr*2;
     if(confirmed){
-      alert={type:'bd',icon:'🔵',
-        title:'サポート割れ確定！',
+      alert={type:'bd',icon:'🔵',title:'サポート割れ確定！',
         sub:'S: '+Math.round(sv).toLocaleString()+' ['+srcLabel(activeSup.src)+']'+touchLabel(activeSup.touches)};
     } else if(cur < sv - thr && prev >= sv){
-      alert={type:'bd',icon:'⚠️',
-        title:'サポート割れ（確認中）',
+      alert={type:'bd',icon:'⚠️',title:'サポート割れ（確認中）',
         sub:'S: '+Math.round(sv).toLocaleString()+' — 定着確認待ち'};
     } else if(approaching){
-      alert={type:'ok',icon:'⚠️',
-        title:'サポート付近',
+      alert={type:'ok',icon:'⚠️',title:'サポート付近',
         sub:Math.round(sv).toLocaleString()+' 付近 ['+srcLabel(activeSup.src)+']'};
     }
   }
@@ -647,27 +667,22 @@ function trendlineAnalysis(tf, dailyTf=null) {
     const confirmed = cur > rv + thr && prev > rv;
     const approaching = Math.abs(cur-rv) < thr*2;
     if(confirmed){
-      alert={type:'bu',icon:'🔴',
-        title:'レジスタンス突破確定！',
+      alert={type:'bu',icon:'🔴',title:'レジスタンス突破確定！',
         sub:'R: '+Math.round(rv).toLocaleString()+' ['+srcLabel(activeRes.src)+']'+touchLabel(activeRes.touches)};
     } else if(cur > rv + thr && prev <= rv){
-      alert={type:'bu',icon:'⚠️',
-        title:'レジスタンス突破（確認中）',
+      alert={type:'bu',icon:'⚠️',title:'レジスタンス突破（確認中）',
         sub:'R: '+Math.round(rv).toLocaleString()+' — 定着確認待ち'};
     } else if(approaching){
-      alert={type:'ok',icon:'⚠️',
-        title:'レジスタンス付近',
+      alert={type:'ok',icon:'⚠️',title:'レジスタンス付近',
         sub:Math.round(rv).toLocaleString()+' 付近 ['+srcLabel(activeRes.src)+']'};
     }
   }
 
-  // 短期足向け回帰ライン（5m/15m/1H）
   const stLines = !isDaily ? shortTermTrendlines(tf, a) : {resLine:null, supLine:null};
 
   return {res, sup, hLevels, dailyRes, dailySup,
           prevDayH, prevDayL, activeSup, activeRes,
-          stLines,
-          alert, cur, atrVal:a};
+          stLines, alert, cur, atrVal:a};
 }
 
 function fibs(high,low){
