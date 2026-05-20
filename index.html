@@ -369,18 +369,32 @@ async function fetchAll() {
   const d1 = await yahoo(sym,'1d','6mo');
   if (!d1) throw new Error('日足データを取得できませんでした');
 
-  const [h1r,m15r,m5r,m30r] = await Promise.allSettled([
+  const [h1r,m15r,m5r,m30r,wkr] = await Promise.allSettled([
     yahoo(sym,'1h','5d'),
     yahoo(sym,'15m','2d'),
     yahoo(sym,'5m','1d'),
+    yahoo(sym,'1wk','2y').catch(()=>null),
     yahoo(sym,'30m','5d'),
   ]);
 
   const h1  = h1r.value  || d1;
+  const wk  = wkr?.value  || null;
   const m15 = m15r.value || h1;
   const m5  = m5r.value  || m15;
   const m30 = m30r.value || m15;
   // 4H = 1H を4本まとめる
+  // 3D足 = 日足を3本まとめる
+  const tf3d = (() => {
+    if(d1.closes.length < 6) return d1;
+    const c=[],h=[],l=[];
+    for(let i=0;i+2<d1.closes.length;i+=3){
+      c.push(d1.closes[i+2]);
+      h.push(Math.max(d1.highs[i],d1.highs[i+1],d1.highs[i+2]));
+      l.push(Math.min(d1.lows[i],d1.lows[i+1],d1.lows[i+2]));
+    }
+    return {closes:c,highs:h,lows:l};
+  })();
+
   const tf4h = (() => {
     if (h1.closes.length < 8) return h1;
     const c=[],h=[],l=[];
@@ -394,7 +408,7 @@ async function fetchAll() {
 
   const base = { '5m':m5,'15m':m15,'30m':m30,'1h':h1,'4h':tf4h,'1d':d1 }[BASE_TF] || m15;
 
-  return { d1, h1, m15, m5, m30, tf4h, base };
+  return { d1, h1, m15, m5, m30, tf4h, wk, base };
 }
 
 // ===== MATH =====
@@ -803,6 +817,101 @@ function calcCycle(d1, manual=[]) {
 }
 
 // ===== CANVAS CHART =====
+// 大局チャート：日足+週足を重ねて表示
+function drawChartOverview(id, d1, wk, tl, label) {
+  const canvas = document.getElementById(id);
+  if(!canvas) return;
+  const dpr = window.devicePixelRatio||1;
+  const W = canvas.offsetWidth, H = 160;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  canvas.style.height = H+'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+
+  // 日足データ（全部使う）
+  const closes = d1.closes, highs = d1.highs, lows = d1.lows;
+  const n = closes.length;
+  if(n < 2) return;
+
+  const pad = {l:6,r:54,t:10,b:16};
+  const cw = W-pad.l-pad.r, ch = H-pad.t-pad.b;
+  const minV = Math.min(...lows), maxV = Math.max(...highs), vr = maxV-minV||1;
+  const x = i => pad.l+(i/(n-1))*cw;
+  const y = v => pad.t+ch-((v-minV)/vr)*ch;
+
+  ctx.fillStyle='#111'; ctx.fillRect(0,0,W,H);
+
+  // グリッド
+  ctx.strokeStyle='rgba(46,68,96,.3)'; ctx.lineWidth=.5;
+  for(let i=0;i<=4;i++){
+    const yy=pad.t+(ch/4)*i;
+    ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();
+    const price = maxV-(vr/4)*i;
+    ctx.fillStyle='rgba(139,160,184,.5)';ctx.font='8px monospace';
+    ctx.fillText(Math.round(price).toLocaleString(),W-pad.r+2,yy+3);
+  }
+
+  // ローソク足（細め）
+  const bw = Math.max(1, cw/n-0.5);
+  for(let i=0;i<n;i++){
+    const open=i>0?closes[i-1]:closes[i], close=closes[i];
+    const bull=close>=open;
+    ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
+    ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(x(i),y(highs[i]));ctx.lineTo(x(i),y(lows[i]));ctx.stroke();
+    const y1=y(Math.max(open,close)), y2=y(Math.min(open,close));
+    ctx.fillRect(x(i)-bw/2,y1,bw,Math.max(1,y2-y1));
+  }
+
+  // トレンドライン
+  if(tl) {
+    const drawL=(line,color,dash)=>{
+      if(!line) return;
+      const {p1,p2,val}=line;
+      const x1=x(Math.max(0,p1.idx));
+      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash(dash||[]);
+      ctx.beginPath();ctx.moveTo(x1,y(p1.price));ctx.lineTo(x(n-1),y(val));ctx.stroke();
+      ctx.setLineDash([]);ctx.fillStyle=color;ctx.font='bold 8px monospace';
+      ctx.fillText(Math.round(val).toLocaleString(),W-pad.r+2,y(val)+3);
+      ctx.restore();
+    };
+    drawL(tl.res,'#ff3d5a',[4,3]);
+    drawL(tl.sup,'#00c4ff',[4,3]);
+    if(tl.hLevels?.hRes) {
+      ctx.save();ctx.strokeStyle='rgba(255,100,100,.6)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
+      ctx.beginPath();ctx.moveTo(pad.l,y(tl.hLevels.hRes));ctx.lineTo(W-pad.r,y(tl.hLevels.hRes));ctx.stroke();
+      ctx.restore();
+    }
+    if(tl.hLevels?.hSup) {
+      ctx.save();ctx.strokeStyle='rgba(80,200,255,.6)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
+      ctx.beginPath();ctx.moveTo(pad.l,y(tl.hLevels.hSup));ctx.lineTo(W-pad.r,y(tl.hLevels.hSup));ctx.stroke();
+      ctx.restore();
+    }
+    if(tl.prevDayH){
+      ctx.save();ctx.strokeStyle='rgba(245,200,66,.5)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
+      ctx.beginPath();ctx.moveTo(pad.l,y(tl.prevDayH));ctx.lineTo(W-pad.r,y(tl.prevDayH));ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // 現在値ライン
+  const cp = closes[n-1];
+  ctx.save();ctx.strokeStyle='rgba(245,200,66,.7)';ctx.lineWidth=1;ctx.setLineDash([2,3]);
+  ctx.beginPath();ctx.moveTo(pad.l,y(cp));ctx.lineTo(W-pad.r,y(cp));ctx.stroke();
+  ctx.setLineDash([]);ctx.fillStyle='#f5c842';ctx.font='bold 9px monospace';
+  ctx.fillText(Math.round(cp).toLocaleString(),W-pad.r+2,y(cp)+3);
+  ctx.restore();
+
+  // ラベル（最前面）
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  const lw=ctx.measureText(label+' 大局').width;
+  ctx.fillRect(pad.l,pad.t,lw+8,14);
+  ctx.fillStyle='#ffffff';ctx.font='bold 9px monospace';
+  ctx.fillText(label+' 大局',pad.l+4,pad.t+10);
+  ctx.restore();
+}
+
 function drawChart(id, tf, tl, label) {
   const canvas=document.getElementById(id);
   if(!canvas||!tf) return;
@@ -812,7 +921,7 @@ function drawChart(id, tf, tl, label) {
   canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');
   ctx.scale(dpr,dpr);
-  const closes=tf.closes.slice(-40), highs=tf.highs.slice(-40), lows=tf.lows.slice(-40);
+  const closes=tf.closes.slice(-60), highs=tf.highs.slice(-60), lows=tf.lows.slice(-60);
   const n=closes.length;
   if(n<2) return;
   const pad={l:6,r:54,t:10,b:16};
@@ -926,7 +1035,7 @@ async function loadData() {
   try {
     const data = await fetchAll();
     clearInterval(timer);
-    const {d1,h1,m15,m5,m30,tf4h,base}=data;
+    const {d1,h1,m15,m5,m30,tf4h,wk,base}=data;
 
     // VIX・ドル円・ダウを並列取得（失敗しても続行）
     const [vixD, usdjpyD, dowD] = await Promise.allSettled([
@@ -1129,10 +1238,14 @@ async function loadData() {
         tlAlertHTML(tlM15,'15m')+
         tlAlertHTML(tlH1,'1H')+
         tlAlertHTML(tlD,'D')+
-        '<div class="chart-wrap"><canvas id="ch5m"></canvas></div>'+
-        '<div class="chart-wrap" style="margin-top:8px"><canvas id="ch15m"></canvas></div>'+
-        '<div class="chart-wrap" style="margin-top:8px"><canvas id="ch1h"></canvas></div>'+
-        '<div class="chart-wrap" style="margin-top:8px"><canvas id="chD"></canvas></div>'+
+        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 4px">大局チャート</div>'+
+        '<div class="chart-wrap"><canvas id="chOverview" style="height:160px"></canvas></div>'+
+        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 4px">週足 (1W)</div>'+
+        '<div class="chart-wrap"><canvas id="chWk"></canvas></div>'+
+        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:8px 0 4px">3日足 (3D)</div>'+
+        '<div class="chart-wrap"><canvas id="ch3d"></canvas></div>'+
+        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:8px 0 4px">日足 (1D)</div>'+
+        '<div class="chart-wrap"><canvas id="chD"></canvas></div>'+
       '</div>';
 
     panelHTMLs['daypred'] =
