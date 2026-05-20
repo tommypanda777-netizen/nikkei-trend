@@ -502,35 +502,48 @@ function regressionTrendline(prices, indices, n) {
   };
 }
 
-// 短期足用：直近の戻り高値から回帰ライン、安値は水平線
+// 短期足用：レジスタンスは回帰ライン、サポートは最多タッチ水平線
 function shortTermTrendlines(tf, atrVal) {
   const n = tf.closes.length - 1;
-  const {ph, pl} = pivots(tf, 3);
-  const recentH = ph.slice(-8);
-  const recentL = pl.slice(-6);
+  const cur = tf.closes[n];
 
-  // レジスタンス：回帰ライン（下降トレンドを捉える）
+  // 直近半分のデータでピボット検出
+  const half = Math.floor(tf.closes.length / 2);
+  const tfR = {
+    closes: tf.closes.slice(-half),
+    highs:  tf.highs.slice(-half),
+    lows:   tf.lows.slice(-half),
+  };
+  const offset = tf.closes.length - half;
+  const {ph, pl} = pivots(tfR, 3);
+  ph.forEach(p => p.idx += offset);
+  pl.forEach(p => p.idx += offset);
+
+  // レジスタンス：回帰ライン（下降高値を捉える）
+  const recentH = ph.slice(-8);
   const resLine = recentH.length >= 2
     ? regressionTrendline(recentH.map(p=>p.price), recentH.map(p=>p.idx), n)
     : null;
 
-  // サポート：直近の安値クラスターから水平線（ディセンディングトライアングルのフラットな底）
+  // サポート：最もタッチ回数が多い価格帯を水平線として返す
   let supLine = null;
-  if(recentL.length >= 2) {
-    // 安値の中央値付近に集まっているものをクラスタリング
-    const sorted = [...recentL].sort((a,b)=>a.price-b.price);
-    const median = sorted[Math.floor(sorted.length/2)].price;
-    const tol = atrVal * 1.5;
-    const cluster = recentL.filter(p => Math.abs(p.price-median) < tol);
-    if(cluster.length >= 2) {
-      const avgPrice = cluster.reduce((s,p)=>s+p.price,0)/cluster.length;
-      // 水平線として表現（傾き0）
-      const firstIdx = cluster[0].idx;
+  if(pl.length >= 1) {
+    const tol = atrVal * 1.0; // この範囲内の安値を同一水平線とみなす
+    // 各安値を起点にクラスターを作る
+    const clusters = pl.map(seed => {
+      const members = pl.filter(p => Math.abs(p.price - seed.price) < tol);
+      const avgPrice = members.reduce((s,p)=>s+p.price,0) / members.length;
+      return { price: avgPrice, touches: members.length, lastIdx: Math.max(...members.map(p=>p.idx)) };
+    });
+    // タッチ数が最多（同数なら直近）のクラスターを選ぶ
+    clusters.sort((a,b) => b.touches - a.touches || b.lastIdx - a.lastIdx);
+    const best = clusters[0];
+    if(best && best.touches >= 2 && best.price < cur) {
       supLine = {
-        p1: {idx:firstIdx, price:avgPrice},
-        p2: {idx:n, price:avgPrice},
-        slope: 0, val: avgPrice, rising: false,
-        touches: cluster.length, isRegression: false, isHorizontal: true
+        p1: {idx: pl[0].idx, price: best.price},
+        p2: {idx: n,          price: best.price},
+        slope: 0, val: best.price, rising: false,
+        touches: best.touches, isHorizontal: true
       };
     }
   }
