@@ -1239,7 +1239,7 @@ async function loadData() {
         tlAlertHTML(tlH1,'1H')+
         tlAlertHTML(tlD,'D')+
         '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 4px">大局チャート</div>'+
-        '<div class="chart-wrap"><canvas id="chOverview" style="height:160px"></canvas></div>'+
+        '<div class="chart-wrap" style="height:160px"><canvas id="chOverview" style="height:160px"></canvas></div>'+
         '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 4px">週足 (1W)</div>'+
         '<div class="chart-wrap"><canvas id="chWk"></canvas></div>'+
         '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:8px 0 4px">3日足 (3D)</div>'+
@@ -1384,30 +1384,20 @@ async function loadData() {
 
         // draw charts
     const _label = inst.label; // チャートラベル用
-    requestAnimationFrame(()=>{
-      if(m5 !== m15) {
-        drawChart('ch5m', m5, tlM5, _label+' 5m');
-      } else {
-        const c5 = document.getElementById('ch5m');
-        if(c5) {
-          const dpr = window.devicePixelRatio||1;
-          c5.width = c5.offsetWidth * dpr;
-          c5.height = 60 * dpr;
-          c5.style.height = '60px';
-          const ctx = c5.getContext('2d');
-          ctx.scale(dpr, dpr);
-          ctx.fillStyle = '#1a1a1a';
-          ctx.fillRect(0, 0, c5.offsetWidth, 60);
-          ctx.fillStyle = 'rgba(255,255,255,0.2)';
-          ctx.font = 'bold 11px monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText(_label+' 5m — データなし', c5.offsetWidth/2, 34);
-        }
+    setTimeout(()=>{
+      drawChartOverview('chOverview', d1, wk, tlD, _label);
+      if(wk) drawChart('chWk', wk, null, _label+' 1W');
+      else {
+        const cw = document.getElementById('chWk');
+        if(cw){ cw.style.height='80px'; const ctx=cw.getContext('2d');
+          cw.width=cw.offsetWidth; cw.height=80;
+          ctx.fillStyle='#111'; ctx.fillRect(0,0,cw.offsetWidth,80);
+          ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='11px monospace'; ctx.textAlign='center';
+          ctx.fillText('週足データなし', cw.offsetWidth/2, 44); }
       }
-      drawChart('ch15m', m15, tlM15, _label+' 15m');
-      drawChart('ch1h',  h1,  tlH1,  _label+' 1H');
-      drawChart('chD',   d1,  tlD,   _label+' D');
-    });
+      drawChart('ch3d', tf3d, null, _label+' 3D');
+      drawChart('chD',  d1,  tlD,  _label+' 1D');
+    }, 150);
 
     renderCycList();
 
