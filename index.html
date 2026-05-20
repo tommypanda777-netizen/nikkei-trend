@@ -408,7 +408,7 @@ async function fetchAll() {
 
   const base = { '5m':m5,'15m':m15,'30m':m30,'1h':h1,'4h':tf4h,'1d':d1 }[BASE_TF] || m15;
 
-  return { d1, h1, m15, m5, m30, tf4h, wk, base };
+  return { d1, h1, m15, m5, m30, tf4h, tf3d, wk, base };
 }
 
 // ===== MATH =====
@@ -1035,7 +1035,7 @@ async function loadData() {
   try {
     const data = await fetchAll();
     clearInterval(timer);
-    const {d1,h1,m15,m5,m30,tf4h,wk,base}=data;
+    const {d1,h1,m15,m5,m30,tf4h,tf3d,wk,base}=data;
 
     // VIX・ドル円・ダウを並列取得（失敗しても続行）
     const [vixD, usdjpyD, dowD] = await Promise.allSettled([
