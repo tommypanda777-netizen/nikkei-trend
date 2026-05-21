@@ -516,34 +516,22 @@ function regressionTrendline(prices, indices, n) {
   };
 }
 
-// 短期・中期トレンドライン：高値の回帰（レジスタンス）+ 安値の回帰（サポート）
+// トレンドライン：高値・安値それぞれ独立した回帰ライン、3点以上で描画
 function shortTermTrendlines(tf, atrVal) {
   const n = tf.closes.length - 1;
-  const cur = tf.closes[n];
   const isDaily = tf.closes.length >= 60;
+  const {ph, pl} = pivots(tf, isDaily ? 5 : 3);
 
-  // 日足は全データ、短期足は直近半分を使用
-  const half = isDaily ? tf.closes.length : Math.max(10, Math.floor(tf.closes.length / 2));
-  const tfR = {
-    closes: tf.closes.slice(-half),
-    highs:  tf.highs.slice(-half),
-    lows:   tf.lows.slice(-half),
-  };
-  const offset = tf.closes.length - half;
-  const lb = isDaily ? 5 : 3;
-  const {ph, pl} = pivots(tfR, lb);
-  ph.forEach(p => p.idx += offset);
-  pl.forEach(p => p.idx += offset);
-
-  // レジスタンス：高値の回帰ライン（直近8点）
   const recentH = ph.slice(-8);
-  const resLine = recentH.length >= 2
+  const recentL = pl.slice(-8);
+
+  // レジスタンス：高値3点以上で回帰ライン
+  const resLine = recentH.length >= 3
     ? regressionTrendline(recentH.map(p=>p.price), recentH.map(p=>p.idx), n)
     : null;
 
-  // サポート：安値の回帰ライン（直近8点）
-  const recentL = pl.slice(-8);
-  const supLine = recentL.length >= 2
+  // サポート：安値3点以上で回帰ライン（独立計算）
+  const supLine = recentL.length >= 3
     ? regressionTrendline(recentL.map(p=>p.price), recentL.map(p=>p.idx), n)
     : null;
 
@@ -978,10 +966,12 @@ function drawChart(id, tf, tl, label) {
     // 斜めトレンドライン（破線）
     drawL(tl.res,'#ff3d5a',[4,3]);
     drawL(tl.sup,'#00c4ff',[4,3]);
-    // 回帰ライン（実線）- 全TFで表示
+    // 回帰ライン（実線）- 傾きで色を決定（上昇=赤、下降=青）
     if(tl.stLines) {
-      drawL(tl.stLines.resLine,'rgba(255,120,60,1)',[]);
-      drawL(tl.stLines.supLine,'rgba(60,210,255,1)',[]);
+      const resColor = tl.stLines.resLine?.rising ? '#ff3d5a' : '#00c4ff';
+      const supColor = tl.stLines.supLine?.rising ? '#ff3d5a' : '#00c4ff';
+      drawL(tl.stLines.resLine, resColor, []);
+      drawL(tl.stLines.supLine, supColor, []);
     }
     // 水平線は非表示（邪魔なので）
     // drawH(tl.hLevels?.hRes,'rgba(255,100,100,0.8)');
