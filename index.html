@@ -516,37 +516,52 @@ function regressionTrendline(prices, indices, n) {
   };
 }
 
-// トレンドライン：高値・安値それぞれ独立した回帰ライン、3点以上で描画
+// トレンドライン：直近トレンドの高値・安値回帰ライン
 function shortTermTrendlines(tf, atrVal) {
   const n = tf.closes.length - 1;
   const isDaily = tf.closes.length >= 60;
+  const lookback = isDaily ? 30 : Math.min(60, tf.closes.length - 1);
+  const lb = isDaily ? 3 : 3;
 
-  // 直近20本（日足=20営業日=約1ヶ月、短期足=直近データ）に絞る
-  const lookback = isDaily ? 20 : Math.min(40, Math.floor(tf.closes.length / 2));
+  // 直近lookback本でピボット検出
   const tfR = {
     closes: tf.closes.slice(-lookback),
     highs:  tf.highs.slice(-lookback),
     lows:   tf.lows.slice(-lookback),
   };
   const offset = tf.closes.length - lookback;
-  const lb = isDaily ? 3 : 3;
   const {ph, pl} = pivots(tfR, lb);
   ph.forEach(p => p.idx += offset);
   pl.forEach(p => p.idx += offset);
 
-  // レジスタンス：高値3点以上で回帰ライン
+  if(ph.length < 2 || pl.length < 2) return {resLine:null, supLine:null};
+
+  // 直近トレンドの方向を判定（直近高値が上昇 or 下降）
+  const lastHighs = ph.slice(-3).map(p => p.price);
+  const lastLows  = pl.slice(-3).map(p => p.price);
+  const highTrend = lastHighs.length >= 2 ? lastHighs.at(-1) - lastHighs[0] : 0;
+  const lowTrend  = lastLows.length >= 2  ? lastLows.at(-1)  - lastLows[0]  : 0;
+
+  // 下降トレンド中のレジスタンス：直近ピーク以前の下降高値
+  // 上昇トレンド中のレジスタンス：直近の上昇高値
   const recentH = ph.slice(-6);
   const resLine = recentH.length >= 3
     ? regressionTrendline(recentH.map(p=>p.price), recentH.map(p=>p.idx), n)
     : null;
 
-  // サポート：安値3点以上で回帰ライン（独立計算）
+  // 下降トレンド中のサポート：直近の下降安値
+  // 上昇トレンド中のサポート：直近の上昇安値（押し目）
   const recentL = pl.slice(-6);
   const supLine = recentL.length >= 3
     ? regressionTrendline(recentL.map(p=>p.price), recentL.map(p=>p.idx), n)
     : null;
 
-  return { resLine, supLine };
+  // ブレイク判定：現在値がレジスタンスを上抜けしているか
+  const cur = tf.closes[n];
+  const resBreak = resLine && resLine.slope < 0 && cur > resLine.val + atrVal * 0.3;
+  const supBreak = supLine && supLine.slope > 0 && cur < supLine.val - atrVal * 0.3;
+
+  return { resLine, supLine, resBreak, supBreak };
 }
 
 // ② 水平線：直近の重要な高値・安値
@@ -977,12 +992,31 @@ function drawChart(id, tf, tl, label) {
     // 斜めトレンドライン（破線）
     drawL(tl.res,'#ff3d5a',[4,3]);
     drawL(tl.sup,'#00c4ff',[4,3]);
-    // 回帰ライン（実線）- 傾きで色を決定（上昇=赤、下降=青）
+    // 回帰ライン（実線）- 傾きで色を決定（上昇=赤、下降=青）、ブレイク時は強調
     if(tl.stLines) {
-      const resColor = tl.stLines.resLine?.rising ? '#ff3d5a' : '#00c4ff';
-      const supColor = tl.stLines.supLine?.rising ? '#ff3d5a' : '#00c4ff';
-      drawL(tl.stLines.resLine, resColor, []);
-      drawL(tl.stLines.supLine, supColor, []);
+      const {resLine, supLine, resBreak, supBreak} = tl.stLines;
+      const resColor = resLine?.rising ? '#ff3d5a' : '#00c4ff';
+      const supColor = supLine?.rising ? '#ff3d5a' : '#00c4ff';
+      if(resLine) {
+        ctx.save();
+        if(resBreak) { ctx.shadowColor=resColor; ctx.shadowBlur=8; }
+        drawL(resLine, resColor, []);
+        if(resBreak) {
+          ctx.fillStyle='rgba(255,61,90,0.9)';ctx.font='bold 9px monospace';
+          ctx.fillText('↑ブレイク！', W-pad.r-60, y(resLine.val)-6);
+        }
+        ctx.restore();
+      }
+      if(supLine) {
+        ctx.save();
+        if(supBreak) { ctx.shadowColor=supColor; ctx.shadowBlur=8; }
+        drawL(supLine, supColor, []);
+        if(supBreak) {
+          ctx.fillStyle='rgba(0,196,255,0.9)';ctx.font='bold 9px monospace';
+          ctx.fillText('↓ブレイク！', W-pad.r-60, y(supLine.val)+14);
+        }
+        ctx.restore();
+      }
     }
     // 水平線は非表示（邪魔なので）
     // drawH(tl.hLevels?.hRes,'rgba(255,100,100,0.8)');
