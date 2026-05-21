@@ -516,51 +516,36 @@ function regressionTrendline(prices, indices, n) {
   };
 }
 
-// 短期足用：レジスタンスは回帰ライン、サポートは最多タッチ水平線
+// 短期・中期トレンドライン：高値の回帰（レジスタンス）+ 安値の回帰（サポート）
 function shortTermTrendlines(tf, atrVal) {
   const n = tf.closes.length - 1;
   const cur = tf.closes[n];
+  const isDaily = tf.closes.length >= 60;
 
-  // 直近半分のデータでピボット検出
-  const half = Math.floor(tf.closes.length / 2);
+  // 日足は全データ、短期足は直近半分を使用
+  const half = isDaily ? tf.closes.length : Math.max(10, Math.floor(tf.closes.length / 2));
   const tfR = {
     closes: tf.closes.slice(-half),
     highs:  tf.highs.slice(-half),
     lows:   tf.lows.slice(-half),
   };
   const offset = tf.closes.length - half;
-  const {ph, pl} = pivots(tfR, 3);
+  const lb = isDaily ? 5 : 3;
+  const {ph, pl} = pivots(tfR, lb);
   ph.forEach(p => p.idx += offset);
   pl.forEach(p => p.idx += offset);
 
-  // レジスタンス：回帰ライン（下降高値を捉える）
+  // レジスタンス：高値の回帰ライン（直近8点）
   const recentH = ph.slice(-8);
   const resLine = recentH.length >= 2
     ? regressionTrendline(recentH.map(p=>p.price), recentH.map(p=>p.idx), n)
     : null;
 
-  // サポート：最もタッチ回数が多い価格帯を水平線として返す
-  let supLine = null;
-  if(pl.length >= 1) {
-    const tol = atrVal * 1.0; // この範囲内の安値を同一水平線とみなす
-    // 各安値を起点にクラスターを作る
-    const clusters = pl.map(seed => {
-      const members = pl.filter(p => Math.abs(p.price - seed.price) < tol);
-      const avgPrice = members.reduce((s,p)=>s+p.price,0) / members.length;
-      return { price: avgPrice, touches: members.length, lastIdx: Math.max(...members.map(p=>p.idx)) };
-    });
-    // タッチ数が最多（同数なら直近）のクラスターを選ぶ
-    clusters.sort((a,b) => b.touches - a.touches || b.lastIdx - a.lastIdx);
-    const best = clusters[0];
-    if(best && best.touches >= 2 && best.price < cur) {
-      supLine = {
-        p1: {idx: pl[0].idx, price: best.price},
-        p2: {idx: n,          price: best.price},
-        slope: 0, val: best.price, rising: false,
-        touches: best.touches, isHorizontal: true
-      };
-    }
-  }
+  // サポート：安値の回帰ライン（直近8点）
+  const recentL = pl.slice(-8);
+  const supLine = recentL.length >= 2
+    ? regressionTrendline(recentL.map(p=>p.price), recentL.map(p=>p.idx), n)
+    : null;
 
   return { resLine, supLine };
 }
@@ -998,9 +983,9 @@ function drawChart(id, tf, tl, label) {
       drawL(tl.stLines.resLine,'rgba(255,120,60,1)',[]);
       drawL(tl.stLines.supLine,'rgba(60,210,255,1)',[]);
     }
-    // 水平線
-    drawH(tl.hLevels?.hRes,'rgba(255,100,100,0.8)');
-    drawH(tl.hLevels?.hSup,'rgba(100,200,255,0.8)');
+    // 水平線は非表示（邪魔なので）
+    // drawH(tl.hLevels?.hRes,'rgba(255,100,100,0.8)');
+    // drawH(tl.hLevels?.hSup,'rgba(100,200,255,0.8)');
     if(tl.prevDayH) drawH(tl.prevDayH,'rgba(245,200,66,0.7)');
     if(tl.prevDayL) drawH(tl.prevDayL,'rgba(245,200,66,0.7)');
     drawDailyL(tl.dailyRes,'#ff3d5a');
