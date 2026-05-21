@@ -4,283 +4,97 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>トレンド予測</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="トレンド予測">
-<meta name="theme-color" content="#080c10">
+<meta name="apple-mobile-web-app-title" content="市場動向">
 <link rel="apple-touch-icon" href="icon.jpg">
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+<title>市場動向</title>
 <style>
-:root{
-  --bg:#0a0a0a;--surface:#181818;--surface2:#222222;
-  --border:#333333;--bull:#ff3d5a;--bear:#00c4ff;
-  --gold:#f5c842;--text:#e8eef5;--dim:#8aa0b8;
-  --mono:'Share Tech Mono',monospace;
+:root {
+  --bg: #0a0a0a;
+  --surface: #161616;
+  --border: #2a2a2a;
+  --bull: #ff3d5a;
+  --bear: #00c4ff;
+  --neutral: #555;
+  --gold: #f5c842;
+  --text: #e8eef5;
+  --dim: #666;
+  --mono: 'Share Tech Mono', monospace;
 }
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100vh;}
-.wrap{max-width:100%;margin:0 auto;padding:12px;}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Noto Sans JP', sans-serif; min-height:100vh; }
+
+.wrap { max-width:100%; padding:12px; }
 
 /* HEADER */
-header{text-align:center;padding:14px 0 10px;border-bottom:1px solid var(--border);margin-bottom:14px;}
-.hdr-sub{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:3px;margin-bottom:6px;}
-#instrumentSelect{
-  width:100%;background:transparent;border:none;color:#fff;
-  font-family:var(--mono);font-size:20px;font-weight:bold;
-  text-align:center;text-align-last:center;cursor:pointer;outline:none;
-  letter-spacing:2px;padding:4px 0;appearance:none;-webkit-appearance:none;
+header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 0 12px; border-bottom:1px solid var(--border); margin-bottom:12px;
 }
-.update-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;}
-#lastUpdate{font-family:var(--mono);font-size:15px;color:var(--dim);}
-.upd-btn{background:transparent;border:1px solid var(--border);border-radius:4px;
-  color:var(--dim);font-size:14px;padding:2px 10px;cursor:pointer;}
-select.upd-btn{color-scheme:dark;}
+.hdr-left { display:flex; flex-direction:column; gap:2px; }
+.hdr-title { font-family:var(--mono); font-size:11px; color:var(--dim); letter-spacing:3px; }
+.hdr-price { font-family:var(--mono); font-size:28px; font-weight:bold; line-height:1; }
+.hdr-change { font-family:var(--mono); font-size:12px; margin-top:2px; }
+.hdr-right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+.upd-row { display:flex; gap:6px; align-items:center; }
+.upd-time { font-family:var(--mono); font-size:10px; color:var(--dim); }
+.btn { background:var(--surface); border:1px solid var(--border); color:var(--dim);
+  padding:4px 10px; border-radius:4px; font-family:var(--mono); font-size:11px; cursor:pointer; }
+.btn:active { opacity:.7; }
+select.btn { text-align:center; text-align-last:center; color-scheme:dark; }
 
-/* TF SELECTOR */
-.tf-sel{display:flex;align-items:center;gap:8px;background:var(--surface);
-  border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin-bottom:14px;}
-.tf-sel span{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:2px;white-space:nowrap;}
-#tfSelect{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);
-  padding:8px 10px;border-radius:4px;font-family:var(--mono);font-size:13px;cursor:pointer;outline:none;}
+/* SECTION LABEL */
+.sec-lbl {
+  font-family:var(--mono); font-size:9px; color:var(--dim);
+  letter-spacing:3px; margin:14px 0 6px;
+}
 
-/* PANELS */
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:14px;}
-.sec{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:3px;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:10px;}
-
-/* TREND BANNER */
-.trend-banner{border-radius:6px;padding:16px;margin-bottom:14px;text-align:center;border:1px solid;position:relative;overflow:hidden;}
-.trend-banner.bull{border-color:var(--bull);background:rgba(255,61,90,.08);color:var(--bull);}
-.trend-banner.bear{border-color:var(--bear);background:rgba(0,196,255,.08);color:var(--bear);}
-.trend-banner.mixed{border-color:var(--gold);background:rgba(245,200,66,.05);color:var(--gold);}
-.trend-label{font-family:var(--mono);font-size:9px;letter-spacing:3px;opacity:.7;margin-bottom:4px;}
-.trend-main{font-size:24px;font-weight:700;}
-.trend-sub{font-family:var(--mono);font-size:11px;opacity:.6;margin-top:4px;}
-
-/* TF CELLS */
-.tf-cells{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px;}
-.tfc{border-radius:5px;padding:10px 4px 8px;text-align:center;border:1px solid var(--border);
-  background:var(--surface);cursor:pointer;min-height:72px;}
-.tfc.active-tf{border-color:#fff !important;box-shadow:0 0 8px rgba(255,255,255,.4) !important;}
-.tfc.cbull{background:rgba(255,61,90,.25);border-color:rgba(255,61,90,.5);}
-.tfc.cbear{background:rgba(0,196,255,.25);border-color:rgba(0,196,255,.5);}
-.tfc-lbl{font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:4px;}
-.tfc-ico{font-size:14px;font-weight:bold;line-height:1;}
-.tfc-txt{font-family:var(--mono);font-size:9px;margin-top:3px;opacity:.7;}
-.tfc-brk{font-family:var(--mono);font-size:8px;margin-top:7px;padding:0px 4px;border-radius:2px;line-height:1.2;}
-
-/* PRICE CARD */
-.price-card{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
-.pi{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px;text-align:center;}
-.pi-lbl{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:4px;}
-.pi-val{font-family:var(--mono);font-size:20px;font-weight:bold;}
-.pi-val.up{color:var(--bull);}
-.pi-val.dn{color:var(--bear);}
-.pi-sub{font-family:var(--mono);font-size:10px;margin-top:3px;}
-
-/* MA LINES */
-.ma-row{display:grid;grid-template-columns:60px 1fr 80px;align-items:center;
-  padding:6px 0;border-bottom:1px solid rgba(46,68,96,.5);font-family:var(--mono);font-size:11px;}
-.ma-row:last-child{border-bottom:none;}
-.ma-lbl{font-size:9px;color:var(--dim);}
-.ma-val{text-align:center;font-size:13px;color:#fff;}
-.ma-dist{text-align:right;font-size:9px;padding:2px 6px;border-radius:3px;white-space:nowrap;}
-
-/* MTF STATUS */
-.mtf-row{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid rgba(46,68,96,.4);}
-.mtf-row:last-child{border-bottom:none;}
-.mtf-tf{font-family:var(--mono);font-size:11px;color:var(--dim);width:60px;}
-.mtf-bar{flex:1;margin:0 10px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
-.mtf-fill{height:100%;border-radius:2px;}
-.mtf-st{font-family:var(--mono);font-size:10px;font-weight:bold;width:36px;text-align:right;}
-.mtf-mc{font-family:var(--mono);font-size:9px;color:var(--dim);width:30px;text-align:right;}
-.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;}
-.dot.b{background:var(--bull);box-shadow:0 0 5px var(--bull);}
-.dot.e{background:var(--bear);box-shadow:0 0 5px var(--bear);}
-.dot.n{background:var(--dim);}
-
-/* SCORE */
-.score-wrap{margin:10px 0 4px;display:flex;align-items:center;gap:8px;}
-.score-bar{flex:1;height:10px;background:var(--border);border-radius:5px;overflow:hidden;position:relative;}
-.score-bull{position:absolute;left:50%;top:0;height:100%;background:var(--bull);}
-.score-bear{position:absolute;right:50%;top:0;height:100%;background:var(--bear);transform-origin:right;}
-.score-mid{position:absolute;left:50%;top:-2px;width:2px;height:14px;background:rgba(255,255,255,.3);transform:translateX(-50%);}
-.score-lbl{font-family:var(--mono);font-size:9px;width:28px;}
-
-/* PIVOT TABLE */
-.pv-row{display:flex;justify-content:space-between;align-items:center;
-  padding:5px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:11px;}
-.pv-row:last-child{border-bottom:none;}
-.pv-lbl{color:var(--dim);font-size:10px;width:100px;}
-.pv-val{font-size:13px;text-align:center;flex:1;}
-.pv-dist{font-size:9px;padding:2px 6px;border-radius:3px;}
-
-/* FIB */
-.fib-row{display:flex;align-items:center;justify-content:space-between;
-  padding:5px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:12px;}
-.fib-row:last-child{border-bottom:none;}
-.fib-lv{color:var(--dim);font-size:10px;width:50px;}
-.fib-pr{font-size:14px;color:#fff;}
-.fib-tag{font-size:9px;padding:2px 6px;border-radius:3px;}
-
-/* TRENDLINE ALERTS */
-.tl-alert{border-radius:5px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;border:1px solid;}
-.tl-alert.bd{border-color:var(--bear);background:rgba(0,196,255,.08);}
-.tl-alert.bu{border-color:var(--bull);background:rgba(255,61,90,.08);}
-.tl-alert.ok{border-color:var(--border);background:transparent;}
-.tl-ico{font-size:18px;flex-shrink:0;}
-.tl-ttl{font-size:13px;font-weight:700;margin-bottom:2px;}
-.tl-sub{font-family:var(--mono);font-size:10px;opacity:.65;}
-
-/* DEV PANEL */
-.dev-row{display:flex;justify-content:space-between;align-items:center;
-  padding:5px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:11px;}
-.dev-row:last-child{border-bottom:none;}
-.dev-lbl{color:var(--dim);font-size:10px;}
-.dev-gauge{margin:10px 0 6px;position:relative;}
-.dev-track{height:10px;background:var(--border);border-radius:5px;position:relative;overflow:visible;}
-.dev-fill-p{height:100%;border-radius:5px;position:absolute;left:50%;background:linear-gradient(90deg,rgba(255,61,90,.4),var(--bull));}
-.dev-fill-n{height:100%;border-radius:5px;position:absolute;right:50%;background:linear-gradient(270deg,rgba(0,196,255,.4),var(--bear));}
-.dev-mid{position:absolute;left:50%;top:-3px;width:2px;height:16px;background:rgba(255,255,255,.4);transform:translateX(-50%);border-radius:1px;}
-.dev-big{font-family:var(--mono);font-size:30px;font-weight:bold;text-align:center;margin:6px 0 2px;line-height:1;cursor:pointer;}
-.dev-period{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:center;margin-bottom:2px;}
-
-/* CYCLE */
-.cyc-num{font-family:var(--mono);font-size:34px;font-weight:bold;text-align:center;line-height:1;}
-.cyc-lbl{font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;letter-spacing:2px;margin-top:3px;}
-.cyc-track{flex:1;height:3px;background:var(--border);border-radius:2px;position:relative;}
-.cyc-prog{height:100%;background:linear-gradient(90deg,var(--bear),var(--gold));border-radius:2px;}
-.cyc-dot{position:absolute;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;border:2px solid var(--bg);}
-.cyc-hist{display:flex;justify-content:space-between;align-items:center;
-  padding:5px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:11px;}
-.cyc-hist:last-child{border-bottom:none;}
-
-/* CANVAS */
-.chart-wrap{border-radius:4px;overflow:hidden;background:var(--surface2);border:1px solid var(--border);margin-top:10px;}
-canvas{display:block;width:100%;}
+/* SIGNAL CARD */
+.card {
+  display:flex; align-items:center;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:6px; padding:12px 14px; margin-bottom:8px;
+  gap:12px;
+}
+.card-body { flex:1; min-width:0; }
+.card-name { font-size:11px; color:var(--dim); font-family:var(--mono); margin-bottom:3px; }
+.card-val { font-size:15px; font-weight:bold; }
+.card-sub { font-size:10px; color:var(--dim); font-family:var(--mono); margin-top:2px; }
+.badge {
+  flex-shrink:0; width:56px; height:44px;
+  border-radius:5px; display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:bold; font-family:var(--mono);
+  letter-spacing:1px;
+}
+.badge.bull { background:rgba(255,61,90,.25); color:var(--bull); border:1px solid rgba(255,61,90,.4); }
+.badge.bear { background:rgba(0,196,255,.2); color:var(--bear); border:1px solid rgba(0,196,255,.3); }
+.badge.neutral { background:rgba(85,85,85,.3); color:#999; border:1px solid var(--border); }
 
 /* LOADING / ERROR */
-.loading{text-align:center;padding:40px;font-family:var(--mono);font-size:13px;color:var(--dim);letter-spacing:2px;}
-.err-box{background:rgba(255,61,90,.1);border:1px solid rgba(255,61,90,.3);border-radius:6px;
-  padding:14px;font-family:var(--mono);font-size:12px;color:var(--bull);text-align:center;margin-bottom:14px;}
+.loading { text-align:center; padding:40px; font-family:var(--mono); font-size:12px; color:var(--dim); letter-spacing:2px; }
+.err { background:rgba(255,61,90,.1); border:1px solid rgba(255,61,90,.3); border-radius:6px;
+  padding:14px; font-family:var(--mono); font-size:11px; color:var(--bull); text-align:center; }
 
-/* CYCLE INPUT */
-.cyc-input-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;}
-.cyc-input-row input,.cyc-input-row select{
-  background:var(--surface2);border:1px solid var(--border);color:var(--text);
-  padding:6px 8px;border-radius:4px;font-family:var(--mono);font-size:11px;}
-.cyc-input-row input{flex:1;min-width:120px;}
-.cyc-btn{background:rgba(245,200,66,.15);border:1px solid var(--gold);color:var(--gold);
-  padding:6px 12px;border-radius:4px;font-family:var(--mono);font-size:10px;cursor:pointer;white-space:nowrap;}
-.cyc-item{display:flex;justify-content:space-between;align-items:center;
-  padding:4px 0;border-bottom:1px solid rgba(46,68,96,.4);font-family:var(--mono);font-size:10px;}
-.cyc-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;padding:0 4px;}
-
-
-
-/* 設定メニュー */
-.settings-btn{
-  position:fixed;top:12px;left:12px;z-index:100;
-  width:36px;height:36px;border-radius:50%;
-  background:var(--surface);border:1px solid var(--border);
-  color:var(--dim);font-size:18px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 2px 8px rgba(0,0,0,.4);
-  transition:all .2s;
-}
-.settings-btn:hover{border-color:var(--gold);color:var(--gold);}
-
-.settings-overlay{
-  display:none;position:fixed;inset:0;z-index:200;
-  background:rgba(0,0,0,.7);
-}
-.settings-overlay.open{display:block;}
-
-.settings-panel{
-  position:fixed;top:0;left:0;bottom:0;z-index:201;
-  width:min(320px,90vw);background:var(--surface);
-  border-right:1px solid var(--border);
-  display:flex;flex-direction:column;
-  transform:translateX(-100%);transition:transform .3s ease;
-}
-.settings-panel.open{transform:translateX(0);}
-
-.settings-header{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:16px;border-bottom:1px solid var(--border);
-}
-.settings-title{font-family:var(--mono);font-size:12px;letter-spacing:3px;color:var(--text);}
-.settings-close{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;padding:4px;}
-
-.settings-body{flex:1;overflow-y:auto;padding:16px;}
-
-.settings-section{
-  font-family:var(--mono);font-size:9px;color:var(--dim);
-  letter-spacing:3px;margin-bottom:8px;margin-top:16px;
-}
-.settings-section:first-child{margin-top:0;}
-
-.panel-item{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 12px;background:var(--surface2);
-  border:1px solid var(--border);border-radius:5px;
-  margin-bottom:6px;cursor:grab;user-select:none;
-  transition:border-color .2s;
-}
-.panel-item:active{cursor:grabbing;border-color:var(--gold);}
-.panel-item.dragging{opacity:.5;border-color:var(--gold);}
-.panel-item.drag-over{border-color:var(--bear);background:rgba(0,196,255,.08);}
-
-.panel-item-drag{color:var(--dim);font-size:14px;flex-shrink:0;}
-.panel-item-name{font-family:var(--mono);font-size:11px;color:var(--text);flex:1;}
-.panel-item-toggle{
-  width:36px;height:20px;border-radius:10px;
-  background:var(--border);border:none;cursor:pointer;
-  position:relative;transition:background .2s;flex-shrink:0;
-}
-.panel-item-toggle.on{background:var(--bear);}
-.panel-item-toggle::after{
-  content:'';position:absolute;top:2px;left:2px;
-  width:16px;height:16px;border-radius:50%;background:#fff;
-  transition:transform .2s;
-}
-.panel-item-toggle.on::after{transform:translateX(16px);}
-
-footer{text-align:center;padding:16px 0;font-family:var(--mono);font-size:9px;color:var(--dim);
-  letter-spacing:2px;border-top:1px solid var(--border);margin-top:4px;}
+footer { text-align:center; padding:16px 0 8px; font-family:var(--mono); font-size:9px;
+  color:var(--dim); letter-spacing:2px; border-top:1px solid var(--border); margin-top:8px; }
 </style>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-<button class="settings-btn" onclick="openSettings()" title="設定">⚙</button>
-<div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
-<div class="settings-panel" id="settingsPanel">
-  <div class="settings-header">
-    <div class="settings-title">SETTINGS</div>
-    <button class="settings-close" onclick="closeSettings()">✕</button>
-  </div>
-  <div class="settings-body">
-    <div class="settings-section">パネルの表示順・表示切替</div>
-    <div id="panelOrderList"></div>
-    <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:12px;line-height:1.6">
-      ドラッグで並び替え<br>右のボタンで表示／非表示
-    </div>
-  </div>
-</div>
-
 <div class="wrap">
   <header>
-    <div class="hdr-sub">FUTURES ANALYSIS SYSTEM</div>
-    <select id="instrumentSelect" onchange="setInstrument(this.value)">
-      <option value="NKD=F">日経225先物</option>
-      <option value="1570.T">1570 日経レバ</option>
-      <option value="1579.T">1579 日経ETN</option>
-    </select>
-    <div class="update-row" style="flex-wrap:wrap;gap:6px;">
-      <div id="lastUpdate" style="font-family:var(--mono);font-size:15px;color:var(--dim);">更新中...</div>
-      <button class="upd-btn" onclick="loadData()">↻</button>
-      <select id="autoRefresh" onchange="setAutoRefresh(this.value)" class="upd-btn" style="font-family:var(--mono);font-size:11px;outline:none;text-align:center;text-align-last:center;">
+    <div class="hdr-left">
+      <div class="hdr-title">N225 FUTURES SIGNAL</div>
+      <div class="hdr-price" id="hdrPrice">---</div>
+      <div class="hdr-change" id="hdrChange">---</div>
+    </div>
+    <div class="hdr-right">
+      <div class="upd-row">
+        <span class="upd-time" id="updTime">---</span>
+        <button class="btn" onclick="loadAll()">↻</button>
+      </div>
+      <select class="btn" id="autoSel" onchange="setAuto(this.value)">
         <option value="0">手動</option>
-        <option value="30">30秒</option>
         <option value="60">1分</option>
         <option value="180">3分</option>
         <option value="300">5分</option>
@@ -288,61 +102,23 @@ footer{text-align:center;padding:16px 0;font-family:var(--mono);font-size:9px;co
     </div>
   </header>
 
-  <div class="tf-sel">
-    <span>BASE TF</span>
-    <select id="tfSelect" onchange="setTF(this.value)">
-      <option value="5m">5分足</option>
-      <option value="15m" selected>15分足</option>
-      <option value="30m">30分足</option>
-      <option value="1h">1時間足</option>
-      <option value="4h">4時間足</option>
-      <option value="1d">日足</option>
-    </select>
-  </div>
-
   <div id="app"><div class="loading">データ取得中...</div></div>
 
-  <footer>N225 FUTURES ANALYSIS SYSTEM<br>
-    <span style="font-size:8px;opacity:.5">※投資判断は自己責任で。このツールは参考情報です。</span>
+  <footer>MARKET SIGNAL DASHBOARD<br>
+    <span style="font-size:8px;opacity:.5">※投資判断は自己責任で</span>
   </footer>
 </div>
 
 <script>
-// グローバルエラーキャッチ
-window.onerror = function(msg, src, line, col, err) {
-  const app = document.getElementById('app');
-  if(app) app.innerHTML = '<div style="background:rgba(255,0,0,.1);border:1px solid red;padding:12px;font-family:monospace;font-size:12px;color:#f88;border-radius:6px">'
-    + '⚠ JSエラー<br>' + msg + '<br>行: ' + line + '</div>';
-  return false;
-};
-window.onunhandledrejection = function(e) {
-  const app = document.getElementById('app');
-  if(app) app.innerHTML = '<div style="background:rgba(255,0,0,.1);border:1px solid red;padding:12px;font-family:monospace;font-size:12px;color:#f88;border-radius:6px">'
-    + '⚠ Promise エラー<br>' + e.reason + '</div>';
-};
-// ===== STATE =====
-let BASE_INST = localStorage.getItem('base_inst') || 'NKD=F';
-let BASE_TF   = localStorage.getItem('base_tf')   || '15m';
-
-const INST = {
-  'NKD=F':  { label:'日経225先物', syms:['NKD=F','^N225'], warn:7 },
-  '1570.T': { label:'1570 日経レバ', syms:['1570.T'], warn:14 },
-  '1579.T': { label:'1579 日経ETN',  syms:['1579.T'], warn:7  },
-};
-
-function setInstrument(v){ BASE_INST=v; localStorage.setItem('base_inst',v); loadData(); }
-function setTF(v){ BASE_TF=v; localStorage.setItem('base_tf',v); loadData(); }
-
 // ===== FETCH =====
-async function yahoo(sym, interval, range) {
+async function fetchYahoo(sym, interval, range) {
   const url = 'https://query1.finance.yahoo.com/v8/finance/chart/'
     + encodeURIComponent(sym)
     + '?interval=' + interval + '&range=' + range + '&includePrePost=false';
-  const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const r = await fetch(proxy, { signal: ctrl.signal });
+    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), { signal: ctrl.signal });
     clearTimeout(t);
     if (!r.ok) return null;
     const j = await r.json();
@@ -350,1296 +126,267 @@ async function yahoo(sym, interval, range) {
     if (!q) return null;
     const closes = (q.close||[]).filter(v => v != null && !isNaN(v));
     if (closes.length < 2) return null;
-    const highs = (q.high||[]).filter(v => v!=null && !isNaN(v));
-    const lows  = (q.low ||[]).filter(v => v!=null && !isNaN(v));
+    const highs = (q.high||[]).filter(v => v != null && !isNaN(v));
+    const lows  = (q.low ||[]).filter(v => v != null && !isNaN(v));
     return {
       closes,
       highs: highs.length === closes.length ? highs : closes.map(c=>c*1.002),
       lows:  lows.length  === closes.length ? lows  : closes.map(c=>c*0.998),
-      sym
     };
   } catch { clearTimeout(t); return null; }
 }
 
-async function fetchAll() {
-  const inst = INST[BASE_INST] || INST['NKD=F'];
-  const sym = inst.syms[0];
-
-  // 日足は必須、他は並列取得（失敗しても続行）
-  const d1 = await yahoo(sym,'1d','6mo');
-  if (!d1) throw new Error('日足データを取得できませんでした');
-
-  const [h1r,m15r,m5r,m30r,wkr] = await Promise.allSettled([
-    yahoo(sym,'1h','5d'),
-    yahoo(sym,'15m','2d'),
-    yahoo(sym,'5m','1d'),
-    yahoo(sym,'1wk','2y').catch(()=>null),
-    yahoo(sym,'30m','5d'),
-  ]);
-
-  const h1  = h1r.value  || d1;
-  const wk  = wkr?.value  || null;
-  const m15 = m15r.value || h1;
-  const m5  = m5r.value  || m15;
-  const m30 = m30r.value || m15;
-  // 4H = 1H を4本まとめる
-  // 3D足 = 日足を3本まとめる
-  const tf3d = (() => {
-    if(d1.closes.length < 6) return d1;
-    const c=[],h=[],l=[];
-    for(let i=0;i+2<d1.closes.length;i+=3){
-      c.push(d1.closes[i+2]);
-      h.push(Math.max(d1.highs[i],d1.highs[i+1],d1.highs[i+2]));
-      l.push(Math.min(d1.lows[i],d1.lows[i+1],d1.lows[i+2]));
-    }
-    return {closes:c,highs:h,lows:l};
-  })();
-
-  const tf4h = (() => {
-    if (h1.closes.length < 8) return h1;
-    const c=[],h=[],l=[];
-    for(let i=0;i+3<h1.closes.length;i+=4){
-      c.push(h1.closes[i+3]);
-      h.push(Math.max(...h1.highs.slice(i,i+4)));
-      l.push(Math.min(...h1.lows.slice(i,i+4)));
-    }
-    return {closes:c,highs:h,lows:l};
-  })();
-
-  const base = { '5m':m5,'15m':m15,'30m':m30,'1h':h1,'4h':tf4h,'1d':d1 }[BASE_TF] || m15;
-
-  return { d1, h1, m15, m5, m30, tf4h, tf3d, wk, base };
-}
-
 // ===== MATH =====
 function sma(arr, n) {
-  if (arr.length < n) return arr.at(-1);
+  if (!arr || arr.length < n) return null;
   return arr.slice(-n).reduce((a,b)=>a+b,0)/n;
 }
-
 function ema(arr, n) {
+  if (!arr || arr.length < n) return null;
   const k = 2/(n+1);
   let e = arr[0];
   for (let i=1;i<arr.length;i++) e = arr[i]*k + e*(1-k);
   return e;
 }
-
+function rsi(arr, n=14) {
+  if (!arr || arr.length < n+1) return null;
+  const recent = arr.slice(-(n+1));
+  let gains=0, losses=0;
+  for (let i=1;i<recent.length;i++) {
+    const d = recent[i]-recent[i-1];
+    if (d>0) gains+=d; else losses-=d;
+  }
+  const ag=gains/n, al=losses/n;
+  return al===0 ? 100 : 100 - 100/(1+ag/al);
+}
 function atr(tf, n=14) {
+  if (!tf) return 0;
   const trs=[];
-  for(let i=1;i<tf.closes.length;i++){
+  for (let i=1;i<tf.closes.length;i++) {
     trs.push(Math.max(
       tf.highs[i]-tf.lows[i],
       Math.abs(tf.highs[i]-tf.closes[i-1]),
       Math.abs(tf.lows[i]-tf.closes[i-1])
     ));
   }
-  if(!trs.length) return 0;
+  if (!trs.length) return 0;
   return trs.slice(-n).reduce((a,b)=>a+b,0)/Math.min(n,trs.length);
 }
 
-function analyzeTF(tf) {
-  if(!tf||tf.closes.length<5) return {bull:false,bear:false,macd:'--'};
-  const c=tf.closes, n=c.length;
-  const s5=sma(c,Math.min(5,n)), s20=sma(c,Math.min(20,n));
-  const e12=ema(c.slice(-26),12), e26=ema(c.slice(-26),26);
-  const macdVal=e12-e26;
-  const bull = c[n-1]>s5 && s5>s20 && macdVal>0;
-  const bear = c[n-1]<s5 && s5<s20 && macdVal<0;
-  return {bull,bear,macd:macdVal>0?'GC':'DC'};
+// TFトレンド判定（MA＋MACD）
+function tfSignal(tf) {
+  if (!tf || tf.closes.length < 10) return { signal:'neutral', label:'中立', sub:'データ不足' };
+  const c = tf.closes;
+  const n = c.length;
+  const s5  = sma(c, Math.min(5,n));
+  const s20 = sma(c, Math.min(20,n));
+  const e12 = ema(c.slice(-26), 12);
+  const e26 = ema(c.slice(-26), 26);
+  const macd = (e12 && e26) ? e12-e26 : 0;
+  const cur = c[n-1];
+  const bull = cur > s5 && s5 > s20 && macd > 0;
+  const bear = cur < s5 && s5 < s20 && macd < 0;
+
+  // トレンドライン判定（最後の5本の方向）
+  const slope5 = c.length >= 5 ? (c[n-1]-c[n-5])/5 : 0;
+  const trendUp = slope5 > 0;
+
+  if (bull) return { signal:'bull', label:'上昇', sub:'MA↑ MACD↑' };
+  if (bear) return { signal:'bear', label:'下降', sub:'MA↓ MACD↓' };
+  return { signal:'neutral', label:'中立', sub: trendUp ? '方向感弱・やや上' : '方向感弱・やや下' };
 }
 
-function pivots(tf, lb=3) {
-  const {highs:H,lows:L} = tf, n=H.length;
-  const ph=[], pl=[];
-  // 過去lb本の中で最高値/最安値のみをピボットとして認識（未来は参照しない）
-  for(let i=lb;i<n;i++){
-    let ih=true,il=true;
-    for(let j=Math.max(0,i-lb);j<i;j++){
-      if(H[j]>=H[i]) ih=false;
-      if(L[j]<=L[i]) il=false;
-    }
-    if(ih) ph.push({idx:i,price:H[i]});
-    if(il) pl.push({idx:i,price:L[i]});
-  }
-  return {ph,pl};
+// ===== CARD HTML =====
+function card(name, valStr, sub, signal) {
+  const cls = signal === 'bull' ? 'bull' : signal === 'bear' ? 'bear' : 'neutral';
+  const lbl = signal === 'bull' ? '買い' : signal === 'bear' ? '売り' : '中立';
+  return '<div class="card">'
+    + '<div class="card-body">'
+    + '<div class="card-name">' + name + '</div>'
+    + '<div class="card-val">' + valStr + '</div>'
+    + (sub ? '<div class="card-sub">' + sub + '</div>' : '')
+    + '</div>'
+    + '<div class="badge ' + cls + '">' + lbl + '</div>'
+    + '</div>';
 }
 
-// ① 3点以上が乗っているラインを検証して最良のものを返す
-function bestTrendline(pts, n, atrVal, isRes) {
-  if(pts.length < 2) return null;
-  let best = null, bestScore = 0;
+function fmt(v) { return Math.round(v).toLocaleString(); }
+function pct(v) { return (v>0?'+':'')+v.toFixed(2)+'%'; }
 
-  for(let a = pts.length-1; a >= Math.max(0, pts.length-6); a--) {
-    for(let b = a-1; b >= Math.max(0, a-6); b--) {
-      const p1=pts[b], p2=pts[a];
-      if(p1.idx===p2.idx) continue;
-      const slope=(p2.price-p1.price)/(p2.idx-p1.idx);
-      const tol = atrVal * 0.3;
-      let touches = 2;
-      for(let c=0; c<pts.length; c++){
-        if(c===a||c===b) continue;
-        const expected = p1.price + slope*(pts[c].idx-p1.idx);
-        if(Math.abs(pts[c].price - expected) < tol) touches++;
-      }
-      const val = p2.price + slope*(n-p2.idx);
-      const score = touches * 10 + (a / pts.length) * 5;
-      if(touches >= 2 && score > bestScore) {
-        bestScore = score;
-        best = {p1, p2, slope, val, rising:slope>0, touches};
-      }
-    }
-  }
-  return best;
-}
-
-// 最小二乗法による回帰トレンドライン（短期足向け）
-function regressionTrendline(prices, indices, n) {
-  const len = prices.length;
-  if(len < 3) return null;
-  let sumX=0, sumY=0, sumXY=0, sumX2=0;
-  for(let i=0;i<len;i++){
-    sumX  += indices[i];
-    sumY  += prices[i];
-    sumXY += indices[i]*prices[i];
-    sumX2 += indices[i]*indices[i];
-  }
-  const denom = len*sumX2 - sumX*sumX;
-  if(Math.abs(denom) < 1e-10) return null;
-  const slope = (len*sumXY - sumX*sumY) / denom;
-  const intercept = (sumY - slope*sumX) / len;
-  const val = slope*n + intercept;
-  const p1idx = indices[0], p2idx = indices[len-1];
-  return {
-    p1: {idx:p1idx, price: slope*p1idx+intercept},
-    p2: {idx:p2idx, price: slope*p2idx+intercept},
-    slope, val, rising:slope>0, touches:len, isRegression:true
-  };
-}
-
-// トレンドライン：直近トレンドの高値・安値回帰ライン
-function shortTermTrendlines(tf, atrVal) {
-  const n = tf.closes.length - 1;
-  const isDaily = tf.closes.length >= 60;
-  const lookback = isDaily ? 30 : Math.min(60, tf.closes.length - 1);
-  const lb = isDaily ? 3 : 3;
-
-  // 直近lookback本でピボット検出
-  const tfR = {
-    closes: tf.closes.slice(-lookback),
-    highs:  tf.highs.slice(-lookback),
-    lows:   tf.lows.slice(-lookback),
-  };
-  const offset = tf.closes.length - lookback;
-  const {ph, pl} = pivots(tfR, lb);
-  ph.forEach(p => p.idx += offset);
-  pl.forEach(p => p.idx += offset);
-
-  if(ph.length < 2 || pl.length < 2) return {resLine:null, supLine:null};
-
-  // 直近トレンドの方向を判定（直近高値が上昇 or 下降）
-  const lastHighs = ph.slice(-3).map(p => p.price);
-  const lastLows  = pl.slice(-3).map(p => p.price);
-  const highTrend = lastHighs.length >= 2 ? lastHighs.at(-1) - lastHighs[0] : 0;
-  const lowTrend  = lastLows.length >= 2  ? lastLows.at(-1)  - lastLows[0]  : 0;
-
-  // 下降トレンド中のレジスタンス：直近ピーク以前の下降高値
-  // 上昇トレンド中のレジスタンス：直近の上昇高値
-  const recentH = ph.slice(-6);
-  const resLine = recentH.length >= 3
-    ? regressionTrendline(recentH.map(p=>p.price), recentH.map(p=>p.idx), n)
-    : null;
-
-  // 下降トレンド中のサポート：直近の下降安値
-  // 上昇トレンド中のサポート：直近の上昇安値（押し目）
-  const recentL = pl.slice(-6);
-  const supLine = recentL.length >= 3
-    ? regressionTrendline(recentL.map(p=>p.price), recentL.map(p=>p.idx), n)
-    : null;
-
-  // ブレイク判定：現在値がレジスタンスを上抜けしているか
-  const cur = tf.closes[n];
-  const resBreak = resLine && resLine.slope < 0 && cur > resLine.val + atrVal * 0.3;
-  const supBreak = supLine && supLine.slope > 0 && cur < supLine.val - atrVal * 0.3;
-
-  return { resLine, supLine, resBreak, supBreak };
-}
-
-// ② 水平線：直近の重要な高値・安値
-function horizontalLevels(tf, atrVal, isDaily=false) {
-  const n = tf.closes.length;
-  const lb = isDaily ? 10 : 5;
-  const {ph, pl} = pivots(tf, lb);
-  const cur = tf.closes[n-1];
-  const tol = atrVal * (isDaily ? 0.8 : 0.5);
-
-  // 日足の場合：同じ価格帯に複数回タッチされたものを優先
-  function findStrongLevel(pts, above) {
-    const candidates = pts.filter(p => above ? p.price > cur + tol : p.price < cur - tol);
-    if(!candidates.length) return null;
-
-    if(isDaily) {
-      // 価格帯でグループ化してタッチ数が多いものを優先
-      const grouped = [];
-      candidates.forEach(p => {
-        const existing = grouped.find(g => Math.abs(g.price - p.price) < atrVal * 1.5);
-        if(existing) { existing.touches++; existing.price = (existing.price + p.price) / 2; }
-        else grouped.push({price: p.price, touches: 1});
-      });
-      // タッチ数が多い → 現在値に近い の順で優先
-      grouped.sort((a,b) => {
-        const scoreDiff = (b.touches - a.touches) * 2;
-        const distDiff = Math.abs(a.price - cur) - Math.abs(b.price - cur);
-        return scoreDiff + distDiff / atrVal;
-      });
-      return grouped[0]?.price || null;
-    } else {
-      return candidates.sort((a,b) => Math.abs(a.price-cur) - Math.abs(b.price-cur))[0]?.price || null;
-    }
-  }
-
-  return {
-    hRes: findStrongLevel(ph, true),
-    hSup: findStrongLevel(pl, false),
-  };
-}
-
-function trendlineAnalysis(tf, dailyTf=null) {
-  if(!tf||tf.closes.length<10) return null;
-  const a = atr(tf,10);
-  const n = tf.closes.length-1;
-  const cur  = tf.closes[n];
-  const prev = tf.closes[Math.max(0,n-1)];
-
-  const isDaily = tf.closes.length >= 60;
-  // lookback：日足=10日前、短期足=直前24時間相当の本数
-  // 1H=24本、15m=96本、5m=288本 → いずれも「24時間前」を上限に
-  const lb = isDaily ? 10 : Math.min(24, Math.floor(tf.closes.length / 4));
-
-  // 短期足は直近半分のデータだけ使う（古いデータで誤ったラインが引かれるのを防ぐ）
-  const tfRecent = (!isDaily && tf.closes.length > 20) ? {
-    closes: tf.closes.slice(-Math.floor(tf.closes.length/2)),
-    highs:  tf.highs.slice(-Math.floor(tf.highs.length/2)),
-    lows:   tf.lows.slice(-Math.floor(tf.lows.length/2)),
-  } : tf;
-
-  const {ph,pl} = pivots(tfRecent, lb);
-  // インデックスをオフセット補正
-  const offset = tf.closes.length - tfRecent.closes.length;
-  ph.forEach(p => p.idx += offset);
-  pl.forEach(p => p.idx += offset);
-
-  const res = bestTrendline(ph, n, a, true);
-  const sup = bestTrendline(pl, n, a, false);
-  const hLevels = horizontalLevels(tf, a, isDaily);
-
-  // 前日高値・安値
-  let prevDayH = null, prevDayL = null;
-  if(dailyTf && dailyTf.closes.length >= 2) {
-    const di = dailyTf.closes.length - 2;
-    prevDayH = dailyTf.highs[di];
-    prevDayL = dailyTf.lows[di];
-  } else if(isDaily && tf.closes.length >= 2) {
-    prevDayH = tf.highs[n-1];
-    prevDayL = tf.lows[n-1];
-  }
-
-  let dailyRes = null, dailySup = null;
-  if(dailyTf && dailyTf !== tf) {
-    const da = atr(dailyTf, 10);
-    const {ph:dph, pl:dpl} = pivots(dailyTf, 10);
-    const dn = dailyTf.closes.length-1;
-    dailyRes = bestTrendline(dph, dn, da, true);
-    dailySup = bestTrendline(dpl, dn, da, false);
-  }
-
-  const thr = a * (isDaily ? 0.3 : 0.15);
-
-  const supCandidates = [
-    sup ? {val:sup.val, touches:sup.touches||1, src:'TL'} : null,
-    hLevels.hSup ? {val:hLevels.hSup, touches:hLevels.hSupTouches||1, src:'H'} : null,
-    prevDayL ? {val:prevDayL, touches:1, src:'PD'} : null,
-  ].filter(v=>v && v.val < cur);
-
-  const resCandidates = [
-    res ? {val:res.val, touches:res.touches||1, src:'TL'} : null,
-    hLevels.hRes ? {val:hLevels.hRes, touches:hLevels.hResTouches||1, src:'H'} : null,
-    prevDayH ? {val:prevDayH, touches:1, src:'PD'} : null,
-  ].filter(v=>v && v.val > cur);
-
-  const activeSup = supCandidates.sort((a,b)=>b.val-a.val)[0] || null;
-  const activeRes = resCandidates.sort((a,b)=>a.val-b.val)[0] || null;
-
-  function srcLabel(src){ return src==='PD'?'前日':src==='H'?'水平':'TL'; }
-  function touchLabel(t){ return t>=2?' ('+t+'タッチ)':''; }
-
-  let alert = {type:'ok', icon:'✅', title:'ライン内側', sub:'ブレイクなし'};
-
-  if(activeSup) {
-    const sv = activeSup.val;
-    const confirmed = cur < sv - thr && prev < sv;
-    const approaching = Math.abs(cur-sv) < thr*2;
-    if(confirmed){
-      alert={type:'bd',icon:'🔵',title:'サポート割れ確定！',
-        sub:'S: '+Math.round(sv).toLocaleString()+' ['+srcLabel(activeSup.src)+']'+touchLabel(activeSup.touches)};
-    } else if(cur < sv - thr && prev >= sv){
-      alert={type:'bd',icon:'⚠️',title:'サポート割れ（確認中）',
-        sub:'S: '+Math.round(sv).toLocaleString()+' — 定着確認待ち'};
-    } else if(approaching){
-      alert={type:'ok',icon:'⚠️',title:'サポート付近',
-        sub:Math.round(sv).toLocaleString()+' 付近 ['+srcLabel(activeSup.src)+']'};
-    }
-  }
-
-  if(alert.type==='ok' && activeRes) {
-    const rv = activeRes.val;
-    const confirmed = cur > rv + thr && prev > rv;
-    const approaching = Math.abs(cur-rv) < thr*2;
-    if(confirmed){
-      alert={type:'bu',icon:'🔴',title:'レジスタンス突破確定！',
-        sub:'R: '+Math.round(rv).toLocaleString()+' ['+srcLabel(activeRes.src)+']'+touchLabel(activeRes.touches)};
-    } else if(cur > rv + thr && prev <= rv){
-      alert={type:'bu',icon:'⚠️',title:'レジスタンス突破（確認中）',
-        sub:'R: '+Math.round(rv).toLocaleString()+' — 定着確認待ち'};
-    } else if(approaching){
-      alert={type:'ok',icon:'⚠️',title:'レジスタンス付近',
-        sub:Math.round(rv).toLocaleString()+' 付近 ['+srcLabel(activeRes.src)+']'};
-    }
-  }
-
-  // 回帰ライン：全TFで計算（日足も含む）
-  const stLines = shortTermTrendlines(tf, a);
-
-  return {res, sup, hLevels, dailyRes, dailySup,
-          prevDayH, prevDayL, activeSup, activeRes,
-          stLines, alert, cur, atrVal:a};
-}
-
-function fibs(high,low){
-  const d=high-low;
-  return [
-    {lv:'100%',price:high,tag:'高値',cls:'target'},
-    {lv:'76.4%',price:high-d*.236,tag:'抵抗',cls:'resist'},
-    {lv:'61.8%',price:high-d*.382,tag:'抵抗',cls:'resist'},
-    {lv:'50.0%',price:high-d*.5,tag:'中間',cls:'mid'},
-    {lv:'38.2%',price:high-d*.618,tag:'サポ',cls:'sup'},
-    {lv:'23.6%',price:high-d*.764,tag:'サポ',cls:'sup'},
-    {lv:'0.0%',price:low,tag:'安値',cls:'sup'},
-  ];
-}
-
-function dayPrediction(d1, cur) {
-  const H=d1.highs, L=d1.lows, C=d1.closes, n=C.length;
-  const pH=H[n-2], pL=L[n-2], pC=C[n-2];
-  const piv=(pH+pL+pC)/3;
-  const ppR1=2*piv-pL, ppR2=piv+(pH-pL), ppS1=2*piv-pH, ppS2=piv-(pH-pL);
-  const rng=pH-pL;
-  const camR3=pC+rng*1.1/4, camS3=pC-rng*1.1/4;
-  const a5=atr(d1,5);
-  const aH=cur+a5*.8, aL=cur-a5*.8;
-  const predH=Math.round(((ppR1+camR3+aH)/3)/10)*10;
-  const predL=Math.round(((ppS1+camS3+aL)/3)/10)*10;
-  return {predH,predL,piv:Math.round(piv),ppR1:Math.round(ppR1),ppR2:Math.round(ppR2),ppS1:Math.round(ppS1),ppS2:Math.round(ppS2)};
-}
-
-function maDeviation(d1, warnPct) {
-  const C=d1.closes, n=C.length, cur=C[n-1];
-  const ma5=sma(C,5), ma13=n>=13?sma(C,13):null, ma25=sma(C,25), ma75=n>=75?sma(C,75):null;
-  const dev5=(cur-ma5)/ma5*100, dev13=ma13?(cur-ma13)/ma13*100:null;
-  const dev25=(cur-ma25)/ma25*100, dev75=ma75?(cur-ma75)/ma75*100:null;
-  const abs=Math.abs(dev25);
-  let status,color,bg,warn;
-  if(abs>=warnPct){
-    status=dev25>0?'🔴 上方過熱':'🔵 下方過熱';
-    color=dev25>0?'var(--bull)':'var(--bear)';
-    bg=dev25>0?'rgba(255,61,90,.15)':'rgba(0,196,255,.15)';
-    warn=dev25>0?'追い買い危険ゾーン':'追い売り危険ゾーン';
-  } else if(abs>=warnPct*.57){
-    status=dev25>0?'⚠️ 上方乖離注意':'⚠️ 下方乖離注意';
-    color='var(--gold)';bg='rgba(245,200,66,.1)';
-    warn=dev25>0?'上昇が続いているが過熱注意':'下落が続いているが底打ち意識';
-  } else {
-    status='✅ 正常範囲';color='var(--text)';bg='rgba(74,86,104,.15)';
-    warn='MAとの乖離は正常範囲内';
-  }
-  return {cur,ma5,ma13,ma25,ma75,dev5,dev13,dev25,dev75,status,color,bg,warn,warnPct};
-}
-
-// ===== CYCLE DATES =====
-function cycleKey(){ return 'cyc_'+BASE_INST; }
-function loadCyc(){ try{ return JSON.parse(localStorage.getItem(cycleKey())||'[]'); }catch{ return []; } }
-function saveCyc(a){ try{ localStorage.setItem(cycleKey(),JSON.stringify(a)); }catch{} }
-
-function calcCycle(d1, manual=[]) {
-  const n=d1.closes.length;
-  const {ph,pl}=pivots(d1,5);
-  const today=new Date(); today.setHours(0,0,0,0);
-  const turns=[];
-  ph.forEach(p=>turns.push({idx:p.idx,price:p.price,type:'high'}));
-  pl.forEach(p=>turns.push({idx:p.idx,price:p.price,type:'low'}));
-  turns.sort((a,b)=>a.idx-b.idx);
-
-  const future=[];
-  manual.forEach(e=>{
-    const d=new Date(e.date); d.setHours(0,0,0,0);
-    const diff=Math.round((d-today)/86400000);
-    if(diff>0){ future.push({date:d,days:diff,type:e.type}); }
-    else{
-      const ago=Math.abs(diff), idx=Math.max(0,n-1-ago);
-      turns.push({idx,price:d1.closes[Math.min(idx,n-1)],type:e.type,manual:true,dateStr:e.date});
-    }
-  });
-  turns.sort((a,b)=>a.idx-b.idx);
-
-  const intervals=[];
-  for(let i=1;i<turns.length;i++){
-    const d=turns[i].idx-turns[i-1].idx;
-    if(d>0&&d<60) intervals.push(d);
-  }
-  const avg=intervals.length?Math.round(intervals.reduce((a,b)=>a+b,0)/intervals.length):20;
-  const last=turns[turns.length-1];
-  const sinceL=last?n-1-last.idx:0;
-  let toNext=Math.max(0,avg-sinceL);
-  let nextDate=new Date(today); nextDate.setDate(today.getDate()+toNext);
-  let nextManual=false;
-
-  if(future.length){
-    future.sort((a,b)=>a.days-b.days);
-    toNext=future[0].days; nextDate=future[0].date; nextManual=true;
-  }
-
-  const hist=turns.slice(-6).map((t,i,arr)=>{
-    const intv=i>0?t.idx-arr[i-1].idx:null;
-    const ago=n-1-t.idx;
-    const d=new Date(today); d.setDate(today.getDate()-ago);
-    return {date:t.dateStr||((d.getMonth()+1)+'/'+d.getDate()),type:t.type,intv,price:Math.round(t.price),manual:t.manual};
-  });
-  const futHist=future.map(f=>({date:(f.date.getMonth()+1)+'/'+(f.date.getDate()),type:f.type,days:f.days,future:true}));
-
-  return {avg,sinceL,toNext,nextDate,near:toNext<=3,hist,futHist,nextManual};
-}
-
-// ===== CANVAS CHART =====
-// 大局チャート：日足+週足を重ねて表示
-function drawChartOverview(id, d1, wk, tl, label) {
-  const canvas = document.getElementById(id);
-  if(!canvas) return;
-  const dpr = window.devicePixelRatio||1;
-  const W = canvas.offsetWidth, H = 160;
-  canvas.width = W*dpr; canvas.height = H*dpr;
-  canvas.style.height = H+'px';
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr,dpr);
-
-  // 日足データ（全部使う）
-  const closes = d1.closes, highs = d1.highs, lows = d1.lows;
-  const n = closes.length;
-  if(n < 2) return;
-
-  const pad = {l:6,r:54,t:10,b:16};
-  const cw = W-pad.l-pad.r, ch = H-pad.t-pad.b;
-  const minV = Math.min(...lows), maxV = Math.max(...highs), vr = maxV-minV||1;
-  const x = i => pad.l+(i/(n-1))*cw;
-  const y = v => pad.t+ch-((v-minV)/vr)*ch;
-
-  ctx.fillStyle='#111'; ctx.fillRect(0,0,W,H);
-
-  // グリッド
-  ctx.strokeStyle='rgba(46,68,96,.3)'; ctx.lineWidth=.5;
-  for(let i=0;i<=4;i++){
-    const yy=pad.t+(ch/4)*i;
-    ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();
-    const price = maxV-(vr/4)*i;
-    ctx.fillStyle='rgba(139,160,184,.5)';ctx.font='8px monospace';
-    ctx.fillText(Math.round(price).toLocaleString(),W-pad.r+2,yy+3);
-  }
-
-  // ローソク足（細め）
-  const bw = Math.max(1, cw/n-0.5);
-  for(let i=0;i<n;i++){
-    const open=i>0?closes[i-1]:closes[i], close=closes[i];
-    const bull=close>=open;
-    ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
-    ctx.lineWidth=0.5;
-    ctx.beginPath();ctx.moveTo(x(i),y(highs[i]));ctx.lineTo(x(i),y(lows[i]));ctx.stroke();
-    const y1=y(Math.max(open,close)), y2=y(Math.min(open,close));
-    ctx.fillRect(x(i)-bw/2,y1,bw,Math.max(1,y2-y1));
-  }
-
-  // トレンドライン
-  if(tl) {
-    const drawL=(line,color,dash)=>{
-      if(!line) return;
-      const {p1,p2,val}=line;
-      const x1=x(Math.max(0,p1.idx));
-      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash(dash||[]);
-      ctx.beginPath();ctx.moveTo(x1,y(p1.price));ctx.lineTo(x(n-1),y(val));ctx.stroke();
-      ctx.setLineDash([]);ctx.fillStyle=color;ctx.font='bold 8px monospace';
-      ctx.fillText(Math.round(val).toLocaleString(),W-pad.r+2,y(val)+3);
-      ctx.restore();
-    };
-    drawL(tl.res,'#ff3d5a',[4,3]);
-    drawL(tl.sup,'#00c4ff',[4,3]);
-    if(tl.hLevels?.hRes) {
-      ctx.save();ctx.strokeStyle='rgba(255,100,100,.6)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
-      ctx.beginPath();ctx.moveTo(pad.l,y(tl.hLevels.hRes));ctx.lineTo(W-pad.r,y(tl.hLevels.hRes));ctx.stroke();
-      ctx.restore();
-    }
-    if(tl.hLevels?.hSup) {
-      ctx.save();ctx.strokeStyle='rgba(80,200,255,.6)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
-      ctx.beginPath();ctx.moveTo(pad.l,y(tl.hLevels.hSup));ctx.lineTo(W-pad.r,y(tl.hLevels.hSup));ctx.stroke();
-      ctx.restore();
-    }
-    if(tl.prevDayH){
-      ctx.save();ctx.strokeStyle='rgba(245,200,66,.5)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
-      ctx.beginPath();ctx.moveTo(pad.l,y(tl.prevDayH));ctx.lineTo(W-pad.r,y(tl.prevDayH));ctx.stroke();
-      ctx.restore();
-    }
-  }
-
-  // 現在値ライン
-  const cp = closes[n-1];
-  ctx.save();ctx.strokeStyle='rgba(245,200,66,.7)';ctx.lineWidth=1;ctx.setLineDash([2,3]);
-  ctx.beginPath();ctx.moveTo(pad.l,y(cp));ctx.lineTo(W-pad.r,y(cp));ctx.stroke();
-  ctx.setLineDash([]);ctx.fillStyle='#f5c842';ctx.font='bold 9px monospace';
-  ctx.fillText(Math.round(cp).toLocaleString(),W-pad.r+2,y(cp)+3);
-  ctx.restore();
-
-  // ラベル（最前面）
-  ctx.save();
-  ctx.fillStyle='rgba(0,0,0,0.6)';
-  const lw=ctx.measureText(label+' 大局').width;
-  ctx.fillRect(pad.l,pad.t,lw+8,14);
-  ctx.fillStyle='#ffffff';ctx.font='bold 9px monospace';
-  ctx.fillText(label+' 大局',pad.l+4,pad.t+10);
-  ctx.restore();
-}
-
-function drawChart(id, tf, tl, label) {
-  const canvas=document.getElementById(id);
-  if(!canvas||!tf) return;
-  const dpr=window.devicePixelRatio||1;
-  const W=canvas.offsetWidth, H=120;
-  canvas.width=W*dpr; canvas.height=H*dpr;
-  canvas.style.height=H+'px';
-  const ctx=canvas.getContext('2d');
-  ctx.scale(dpr,dpr);
-  const closes=tf.closes.slice(-60), highs=tf.highs.slice(-60), lows=tf.lows.slice(-60);
-  const n=closes.length;
-  if(n<2) return;
-  const pad={l:6,r:54,t:10,b:16};
-  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
-  const minV=Math.min(...lows), maxV=Math.max(...highs), vr=maxV-minV||1;
-  const x=i=>pad.l+(i/(n-1))*cw;
-  const y=v=>pad.t+ch-((v-minV)/vr)*ch;
-  ctx.fillStyle='#1a2535'; ctx.fillRect(0,0,W,H);
-  // grid
-  ctx.strokeStyle='rgba(46,68,96,.4)'; ctx.lineWidth=.5;
-  for(let i=0;i<=3;i++){ const yy=pad.t+(ch/3)*i; ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke(); }
-  // candles
-  const bw=Math.max(1,cw/n-1);
-  for(let i=0;i<n;i++){
-    const open=i>0?closes[i-1]:closes[i], close=closes[i];
-    const bull=close>=open;
-    ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
-    ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(x(i),y(highs[i]));ctx.lineTo(x(i),y(lows[i]));ctx.stroke();
-    const y1=y(Math.max(open,close)), y2=y(Math.min(open,close));
-    ctx.fillRect(x(i)-bw/2,y1,bw,Math.max(1,y2-y1));
-  }
-  // trendlines
-  if(tl){
-    const drawL=(line,color,dash)=>{
-      if(!line) return;
-      const {p1,p2,val}=line;
-      // closes は slice(-60) されているので、インデックスをオフセット補正
-      const offset = tf.closes.length - n;
-      const i1 = Math.max(0, p1.idx - offset);
-      const i2 = Math.max(0, p2.idx - offset);
-      if(i1 >= n && i2 >= n) return;
-      // p1から現在まで延長
-      const slope = (p2.price - p1.price) / (p2.idx - p1.idx || 1);
-      const y1price = p1.price + slope * (Math.max(0,p1.idx-offset) - i1) * 0;
-      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash(dash||[]);
-      ctx.beginPath();
-      ctx.moveTo(x(i1), y(p1.price));
-      ctx.lineTo(x(n-1), y(val));
-      ctx.stroke();
-      ctx.setLineDash([]);ctx.fillStyle=color;ctx.font='bold 9px monospace';
-      ctx.fillText(Math.round(val).toLocaleString(),W-pad.r+2,y(val)+3);
-      if(line.touches>2){
-        ctx.font='8px monospace';
-        ctx.fillText('×'+line.touches, W-pad.r+2, y(val)+12);
-      }
-      ctx.restore();
-    };
-    const drawH=(price,color)=>{
-      if(!price) return;
-      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([3,4]);ctx.globalAlpha=0.6;
-      ctx.beginPath();ctx.moveTo(pad.l,y(price));ctx.lineTo(W-pad.r,y(price));ctx.stroke();
-      ctx.setLineDash([]);ctx.globalAlpha=1;ctx.fillStyle=color;ctx.font='8px monospace';
-      ctx.fillText(Math.round(price).toLocaleString(),W-pad.r+2,y(price)+3);
-      ctx.restore();
-    };
-    const drawDailyL=(line,color)=>{
-      if(!line) return;
-      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([2,5]);ctx.globalAlpha=0.45;
-      ctx.beginPath();ctx.moveTo(pad.l,y(line.val));ctx.lineTo(W-pad.r,y(line.val));ctx.stroke();
-      ctx.setLineDash([]);ctx.globalAlpha=0.5;ctx.fillStyle=color;ctx.font='8px monospace';
-      ctx.fillText('D:'+Math.round(line.val).toLocaleString(),W-pad.r+2,y(line.val)+3);
-      ctx.restore();
-    };
-
-    // 斜めトレンドライン（破線）
-    drawL(tl.res,'#ff3d5a',[4,3]);
-    drawL(tl.sup,'#00c4ff',[4,3]);
-    // 回帰ライン（実線）- 傾きで色を決定（上昇=赤、下降=青）、ブレイク時は強調
-    if(tl.stLines) {
-      const {resLine, supLine, resBreak, supBreak} = tl.stLines;
-      const resColor = resLine?.rising ? '#ff3d5a' : '#00c4ff';
-      const supColor = supLine?.rising ? '#ff3d5a' : '#00c4ff';
-      if(resLine) {
-        ctx.save();
-        if(resBreak) { ctx.shadowColor=resColor; ctx.shadowBlur=8; }
-        drawL(resLine, resColor, []);
-        if(resBreak) {
-          ctx.fillStyle='rgba(255,61,90,0.9)';ctx.font='bold 9px monospace';
-          ctx.fillText('↑ブレイク！', W-pad.r-60, y(resLine.val)-6);
-        }
-        ctx.restore();
-      }
-      if(supLine) {
-        ctx.save();
-        if(supBreak) { ctx.shadowColor=supColor; ctx.shadowBlur=8; }
-        drawL(supLine, supColor, []);
-        if(supBreak) {
-          ctx.fillStyle='rgba(0,196,255,0.9)';ctx.font='bold 9px monospace';
-          ctx.fillText('↓ブレイク！', W-pad.r-60, y(supLine.val)+14);
-        }
-        ctx.restore();
-      }
-    }
-    // 水平線は非表示（邪魔なので）
-    // drawH(tl.hLevels?.hRes,'rgba(255,100,100,0.8)');
-    // drawH(tl.hLevels?.hSup,'rgba(100,200,255,0.8)');
-    if(tl.prevDayH) drawH(tl.prevDayH,'rgba(245,200,66,0.7)');
-    if(tl.prevDayL) drawH(tl.prevDayL,'rgba(245,200,66,0.7)');
-    drawDailyL(tl.dailyRes,'#ff3d5a');
-    drawDailyL(tl.dailySup,'#00c4ff');
-    // current price
-    const cp=closes[n-1];
-    ctx.save();ctx.strokeStyle='rgba(245,200,66,.6)';ctx.lineWidth=.8;ctx.setLineDash([2,3]);
-    ctx.beginPath();ctx.moveTo(pad.l,y(cp));ctx.lineTo(W-pad.r,y(cp));ctx.stroke();
-    ctx.setLineDash([]);ctx.fillStyle='#f5c842';ctx.font='bold 9px monospace';
-    ctx.fillText(Math.round(cp).toLocaleString(),W-pad.r+2,y(cp)+3);
-    ctx.restore();
-  }
-  // ラベルを最前面・白色で描画
-  ctx.save();
-  ctx.fillStyle='rgba(0,0,0,0.6)';
-  const lw=ctx.measureText(label).width;
-  ctx.fillRect(pad.l,pad.t,lw+8,14);
-  ctx.fillStyle='#ffffff';
-  ctx.font='bold 9px monospace';
-  ctx.fillText(label,pad.l+4,pad.t+10);
-  ctx.restore();
-}
-
-// ===== RENDER =====
-function h(str){ return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function fmt(v){ return Math.round(v).toLocaleString(); }
-function sign(v){ return v>=0?'+':''; }
-function pct(v){ return (v>0?'+':'')+v.toFixed(2)+'%'; }
-
-async function loadData() {
-  const app=document.getElementById('app');
-
-  // 進捗表示
-  let step=0;
-  const steps=['日足データ取得中...','時間足データ取得中...','分足データ取得中...','計算中...'];
-  app.innerHTML='<div class="loading">'+steps[0]+'</div>';
-  const timer=setInterval(()=>{
-    step=Math.min(step+1,steps.length-1);
-    const el=app.querySelector('.loading');
-    if(el) el.textContent=steps[step];
-  },3000);
+// ===== MAIN =====
+async function loadAll() {
+  const app = document.getElementById('app');
+  app.innerHTML = '<div class="loading">データ取得中...</div>';
 
   try {
-    const data = await fetchAll();
-    clearInterval(timer);
-    const {d1,h1,m15,m5,m30,tf4h,tf3d,wk,base}=data;
+    // データ取得（日足は必須）
+    const d1 = await fetchYahoo('NKD=F', '1d', '3mo');
+    if (!d1) throw new Error('日足データを取得できませんでした');
 
-    // VIX・ドル円・ダウを並列取得（失敗しても続行）
-    const [vixD, usdjpyD, dowD] = await Promise.allSettled([
-      yahoo('^VIX',  '1d', '5d'),
-      yahoo('USDJPY=X', '1d', '5d'),
-      yahoo('^DJI',  '1d', '5d'),
+    const [h1, m15, m5, vixD, usdD, tnxD, irxD] = await Promise.allSettled([
+      fetchYahoo('NKD=F', '1h', '5d'),
+      fetchYahoo('NKD=F', '15m', '2d'),
+      fetchYahoo('NKD=F', '5m',  '1d'),
+      fetchYahoo('^VIX',  '1d',  '5d'),
+      fetchYahoo('USDJPY=X','1d','5d'),
+      fetchYahoo('^TNX',  '1d',  '1mo'),  // 米10年金利
+      fetchYahoo('^IRX',  '1d',  '1mo'),  // 米3ヶ月金利
     ]);
-    const vix    = vixD.value?.closes.at(-1)    || null;
-    const usdjpy = usdjpyD.value?.closes.at(-1)  || null;
-    const dow    = dowD.value?.closes.at(-1)     || null;
-    const dowChg = dowD.value ? (dowD.value.closes.at(-1)-dowD.value.closes.at(-2))/dowD.value.closes.at(-2)*100 : null;
 
-    const inst=INST[BASE_INST]||INST['NKD=F'];
-    const cur=base.closes.at(-1);
-    const prev=base.closes.at(-2)||d1.closes.at(-2);
-    const chg=cur-prev, chgP=chg/prev*100;
-    const prevLbl={'5m':'5分前比','15m':'15分前比','30m':'30分前比','1h':'1時間前比','4h':'4時間前比','1d':'前営業日比'}[BASE_TF]||'前足比';
+    const tf1h  = h1.value;
+    const tf15m = m15.value || tf1h || d1;
+    const tf5m  = m5.value  || tf15m;
+    const vix   = vixD.value?.closes.at(-1)  || null;
+    const usd   = usdD.value?.closes.at(-1)  || null;
+    const tnx   = tnxD.value?.closes.at(-1)  || null;
+    const irx   = irxD.value?.closes.at(-1)  || null;
 
-    // analyses
-    const anD=analyzeTF(d1), an4=analyzeTF(tf4h), anH=analyzeTF(h1), an15=analyzeTF(m15), an5=analyzeTF(m5);
-    const analyses=[anD,an4,anH,an15];
-    const bullN=analyses.filter(a=>a.bull).length;
-    const bearN=analyses.filter(a=>a.bear).length;
+    // 現在値・前日比
+    const cur    = d1.closes.at(-1);
+    const prev   = d1.closes.at(-2);
+    const chg    = cur - prev;
+    const chgPct = chg / prev * 100;
 
-    // overall trend
-    let oCls,oMain,oSub;
-    if(bullN>=3){oCls='bull';oMain='🔴 上方向優勢';oSub='赤が揃っています — 買い優勢';}
-    else if(bearN>=3){oCls='bear';oMain='🔵 下方向優勢';oSub='青が揃っています — 売り優勢';}
-    else{oCls='mixed';oMain='⚡ 混在・様子見';oSub='買い'+bullN+' / 売り'+bearN+' — 方向感なし';}
+    // ヘッダー更新
+    document.getElementById('hdrPrice').textContent = fmt(cur);
+    document.getElementById('hdrPrice').style.color = chg >= 0 ? 'var(--bull)' : 'var(--bear)';
+    document.getElementById('hdrChange').textContent = (chg>=0?'+':'')+fmt(chg)+' ('+pct(chgPct)+') 前日比';
+    document.getElementById('hdrChange').style.color = chg >= 0 ? 'var(--bull)' : 'var(--bear)';
+    const now = new Date();
+    document.getElementById('updTime').textContent = '更新: '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
 
-    // trendlines（日足データを引き継ぎ）
-    const tlM5  = trendlineAnalysis(m5 !== m15 ? m5 : null, d1);
-    const tlM15 = trendlineAnalysis(m15, d1);
-    const tlH1  = trendlineAnalysis(h1, d1);
-    const tlD   = trendlineAnalysis(d1);
+    // ===== シグナル計算 =====
 
-    // MA lines
-    const maLines=[];
-    const addMA=(pr,lbl,tf)=>{ if(pr&&!isNaN(pr)&&pr>0) maLines.push({price:Math.round(pr),lbl,dist:pr-cur,distP:(pr-cur)/cur*100}); };
-    addMA(sma(d1.closes,5),'5dMA');addMA(sma(d1.closes,25),'25dMA');addMA(sma(d1.closes,75),'75dMA');
-    addMA(sma(h1.closes,20),'1hMA20');addMA(sma(h1.closes,50),'1hMA50');
-    addMA(sma(tf4h.closes,20),'4hMA20');addMA(sma(tf4h.closes,50),'4hMA50');
-    maLines.sort((a,b)=>a.price-b.price);
-    const maAbove=maLines.filter(l=>l.price>cur).slice(0,5);
-    const maBelow=maLines.filter(l=>l.price<cur).slice(-5).reverse();
+    // TFシグナル
+    const sig5m  = tfSignal(tf5m);
+    const sig15m = tfSignal(tf15m);
+    const sig1h  = tfSignal(tf1h);
+    const sig1d  = tfSignal(d1);
 
-    // fib
-    const rH=Math.max(...d1.highs.slice(-20)), rL=Math.min(...d1.lows.slice(-20));
-    const fibRows=fibs(rH,rL);
+    // 週足（日足5本まとめ）
+    const wkCloses = [], wkHighs = [], wkLows = [];
+    for (let i=0; i+4<d1.closes.length; i+=5) {
+      wkCloses.push(d1.closes[i+4]);
+      wkHighs.push(Math.max(...d1.highs.slice(i,i+5)));
+      wkLows.push(Math.min(...d1.lows.slice(i,i+5)));
+    }
+    const tf1w = wkCloses.length >= 4 ? {closes:wkCloses, highs:wkHighs, lows:wkLows} : null;
+    const sig1w = tfSignal(tf1w);
 
-    // day prediction
-    const dp=dayPrediction(d1,cur);
+    // 月足（日足20本まとめ）
+    const moCloses = [], moHighs = [], moLows = [];
+    for (let i=0; i+19<d1.closes.length; i+=20) {
+      moCloses.push(d1.closes[i+19]);
+      moHighs.push(Math.max(...d1.highs.slice(i,i+20)));
+      moLows.push(Math.min(...d1.lows.slice(i,i+20)));
+    }
+    const tf1m = moCloses.length >= 2 ? {closes:moCloses, highs:moHighs, lows:moLows} : null;
+    const sig1m = tfSignal(tf1m);
 
-    // deviation
-    const dev=maDeviation(d1,inst.warn);
-
-    // cycle
-    const manual=loadCyc();
-    const cyc=calcCycle(d1,manual);
-
-    // score
-    const bPct=bullN/4*100, ePct=bearN/4*100;
-
-    // update time
-    const now=new Date();
-    document.getElementById('lastUpdate').textContent=
-      '更新: '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' JST';
-
-    // TF cells
-    const dispTF=[
-      {key:'5m',lbl:'5M',an:an5},
-      {key:'15m',lbl:'15M',an:an15},
-      {key:'1h',lbl:'1H',an:anH},
-      {key:'1d',lbl:'1D',an:anD},
-    ];
-
-    function tfCell(t){
-      if(!t.an) return '';
-      const bull=t.an.bull, bear=t.an.bear;
-      const active=BASE_TF===t.key;
-      const cc=bull?'cbull':bear?'cbear':'';
-      const ac=active?'active-tf':'';
-      const ico=bull?'上昇':bear?'下降':'中立';
-      const txt=bull?'上昇':bear?'下降':'中立';
-      const col=bull?'var(--bull)':bear?'var(--bear)':'var(--dim)';
-      const tlt=trendlineAnalysis(
-        t.key==='1d'?d1:t.key==='1h'?h1:m15
-      );
-      let brk='';
-      if(tlt){
-        if(tlt.alert.type==='bd') brk='<div class="tfc-brk" style="background:rgba(0,196,255,.35);color:#fff;font-weight:bold">S割れ</div>';
-        else if(tlt.alert.type==='bu') brk='<div class="tfc-brk" style="background:rgba(255,61,90,.35);color:#fff;font-weight:bold">R抜け</div>';
-      }
-      return '<div class="tfc '+cc+' '+ac+'" onclick="setTF(\''+t.key+'\');document.getElementById(\'tfSelect\').value=\''+t.key+'\'">'
-        +'<div class="tfc-lbl">'+t.lbl+'</div>'
-        +'<div class="tfc-ico" style="color:'+col+';font-size:16px;font-weight:700;font-family:\'Noto Sans JP\',sans-serif;letter-spacing:1px;">'+ico+'</div>'
-        
-        +brk+'</div>';
+    // MA乖離率（25日MA）
+    const ma25 = sma(d1.closes, 25);
+    const devPct = ma25 ? (cur - ma25) / ma25 * 100 : null;
+    let devSig = 'neutral', devSub = '正常範囲';
+    if (devPct !== null) {
+      if (devPct > 7)       { devSig='bear'; devSub='上方過熱 ⚠ 追い買い注意'; }
+      else if (devPct > 4)  { devSig='neutral'; devSub='やや上方乖離 注意'; }
+      else if (devPct < -7) { devSig='bull'; devSub='下方過熱 ⚠ 追い売り注意'; }
+      else if (devPct < -4) { devSig='neutral'; devSub='やや下方乖離 注意'; }
+      else                  { devSig='neutral'; devSub='MA付近 正常範囲'; }
     }
 
-    function maRow(l,isAbove){
-      const bg=isAbove?'rgba(255,61,90,.1)':'rgba(0,196,255,.1)';
-      const col=isAbove?'var(--bull)':'var(--bear)';
-      return '<div class="ma-row">'+
-        '<div class="ma-lbl">'+l.lbl+'</div>'+
-        '<div class="ma-val">'+fmt(l.price)+'</div>'+
-        '<div class="ma-dist" style="background:'+bg+';color:'+col+';white-space:nowrap">'+sign(l.dist)+fmt(l.dist)+' ('+l.distP.toFixed(2)+'%)</div>'+
-        '</div>';
+    // RSI（14日）
+    const rsiVal = rsi(d1.closes, 14);
+    let rsiSig = 'neutral', rsiSub = '中立ゾーン';
+    if (rsiVal !== null) {
+      if (rsiVal >= 75)      { rsiSig='bear'; rsiSub='買われすぎ ⚠ 反転注意'; }
+      else if (rsiVal >= 60) { rsiSig='bull'; rsiSub='強気ゾーン'; }
+      else if (rsiVal <= 25) { rsiSig='bull'; rsiSub='売られすぎ ⚠ 反転注意'; }
+      else if (rsiVal <= 40) { rsiSig='bear'; rsiSub='弱気ゾーン'; }
     }
 
-    function tlAlertHTML(tl, tfLbl){
-      if(!tl) return '';
-      const a=tl.alert;
-      const col=a.type==='bd'?'var(--bear)':a.type==='bu'?'var(--bull)':'var(--text)';
-      return '<div class="tl-alert '+a.type+'">'+
-        '<div class="tl-ico">'+a.icon+'</div>'+
-        '<div><div class="tl-ttl" style="color:'+col+'">['+tfLbl+'] '+a.title+'</div>'+
-        '<div class="tl-sub">'+a.sub+'</div></div></div>';
+    // VIX
+    let vixSig = 'neutral', vixSub = '---';
+    if (vix) {
+      if (vix >= 30)       { vixSig='bear'; vixSub='恐怖 — 急落リスク高'; }
+      else if (vix >= 20)  { vixSig='neutral'; vixSub='警戒ゾーン'; }
+      else if (vix <= 14)  { vixSig='bull'; vixSub='落ち着き — リスクオン'; }
+      else                 { vixSig='neutral'; vixSub='平常範囲'; }
     }
 
-    // ===== パネルHTMLを個別に定義 =====
-    const panelHTMLs = {};
+    // 長期金利（米10年）
+    let tnxSig = 'neutral', tnxSub = '---';
+    if (tnx && tnxD.value?.closes.length >= 5) {
+      const tnxPrev = tnxD.value.closes.at(-5);
+      const tnxDir  = tnx - tnxPrev;
+      if (tnx >= 4.5 && tnxDir > 0)       { tnxSig='bear'; tnxSub='高水準・上昇 — 株に逆風'; }
+      else if (tnx >= 4.5)                 { tnxSig='neutral'; tnxSub='高水準だが横ばい'; }
+      else if (tnxDir > 0.1)               { tnxSig='neutral'; tnxSub='上昇中 — 要注意'; }
+      else if (tnxDir < -0.1)              { tnxSig='bull'; tnxSub='低下中 — 株に追い風'; }
+      else                                 { tnxSig='neutral'; tnxSub='横ばい'; }
+    }
 
-    panelHTMLs['sentiment'] =
-      '<div class="panel">'+
-        '<div class="sec">マーケットセンチメント</div>'+
-        (vix?(()=>{
-          const lv=vix<15?'落ち着き':vix<20?'平常':vix<25?'やや警戒':vix<30?'警戒':vix<40?'恐怖':'極度の恐怖';
-          const vc=vix<20?'var(--text)':vix<25?'var(--gold)':vix<30?'rgba(255,140,0,1)':'var(--bull)';
-          const vp=Math.min(100,vix/50*100);
-          return '<div style="margin-bottom:10px">'+
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
-              '<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">VIX 恐怖指数</div>'+
-              '<div style="font-family:var(--mono);font-size:13px;color:'+vc+'">'+vix.toFixed(2)+' <span style="font-size:10px">'+lv+'</span></div>'+
-            '</div>'+
-            '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">'+
-              '<div style="height:100%;width:'+vp+'%;background:linear-gradient(90deg,#27ae60,'+vc+');border-radius:3px"></div>'+
-            '</div>'+
-            '<div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--dim);margin-top:2px">'+
-              '<span>0 落ち着き</span><span>20 平常</span><span>30 警戒</span><span>50+ 恐怖</span>'+
-            '</div></div>';
-        })():'')+
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
-          (usdjpy?'<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center">'+
-            '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:3px">ドル円</div>'+
-            '<div style="font-family:var(--mono);font-size:15px;color:#fff">'+usdjpy.toFixed(2)+'</div></div>':'')+
-          (dow?'<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px;text-align:center">'+
-            '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:3px">NYダウ</div>'+
-            '<div style="font-family:var(--mono);font-size:15px;color:#fff">'+Math.round(dow).toLocaleString()+'</div>'+
-            '<div style="font-family:var(--mono);font-size:10px;color:'+(dowChg>=0?'var(--bull)':'var(--bear)')+'">'+
-              (dowChg>=0?'+':'')+dowChg.toFixed(2)+'%</div></div>':'')+
-        '</div>'+
-      '</div>';
+    // ドル円
+    let usdSig = 'neutral', usdSub = '---';
+    if (usd && usdD.value?.closes.length >= 5) {
+      const usdPrev = usdD.value.closes.at(-5);
+      const usdDir  = usd - usdPrev;
+      if (usdDir > 1)        { usdSig='bull'; usdSub='円安進行 — 先物に追い風'; }
+      else if (usdDir < -1)  { usdSig='bear'; usdSub='円高進行 — 先物に逆風'; }
+      else                   { usdSig='neutral'; usdSub='横ばい'; }
+    }
 
-    panelHTMLs['malines'] =
-      '<div class="panel">'+
-        '<div class="sec">MAライン抵抗値（上値）</div>'+
-        (maAbove.length?maAbove.map(l=>maRow(l,true)).join(''):'<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">なし</div>')+
-        '<div class="sec" style="margin-top:10px">MAライン抵抗値（下値）</div>'+
-        (maBelow.length?maBelow.map(l=>maRow(l,false)).join(''):'<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">なし</div>')+
-      '</div>';
+    // ===== RENDER =====
+    let html = '';
 
-    panelHTMLs['mtf'] =
-      '<div class="panel">'+
-        '<div class="sec">MULTI-TIMEFRAME STATUS</div>'+
-        [['日足 D',anD],['4時間 H4',an4],['1時間 H1',anH],['15分 M15',an15]].map(([lbl,an])=>{
-          const bull=an.bull,bear=an.bear;
-          const p2=bull?75:bear?25:50;
-          const bc=bull?'var(--bull)':bear?'var(--bear)':'var(--dim)';
-          const dc=bull?'b':bear?'e':'n';
-          const st=bull?'赤':bear?'青':'中立';
-          const sc=bull?'var(--bull)':bear?'var(--bear)':'var(--dim)';
-          return '<div class="mtf-row">'+
-            '<div class="mtf-tf">'+lbl+'</div>'+
-            '<div class="mtf-bar"><div class="mtf-fill" style="width:'+p2+'%;background:'+bc+'"></div></div>'+
-            '<div class="mtf-st" style="color:'+sc+'"><span class="dot '+dc+'"></span>'+st+'</div>'+
-            '<div class="mtf-mc" style="color:'+sc+'">'+an.macd+'</div>'+
-          '</div>';
-        }).join('')+
-        '<div style="margin-top:10px">'+
-          '<div class="score-wrap">'+
-            '<div class="score-lbl" style="color:var(--bear);font-size:8px">売り</div>'+
-            '<div class="score-bar">'+
-              '<div class="score-bull" style="width:'+bPct/2+'%"></div>'+
-              '<div class="score-bear" style="width:'+ePct/2+'%"></div>'+
-              '<div class="score-mid"></div>'+
-            '</div>'+
-            '<div class="score-lbl" style="color:var(--bull);text-align:right;font-size:8px">買い</div>'+
-          '</div>'+
-          '<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;margin-top:4px">'+
-            '買い '+bullN+'/4 | 売り '+bearN+'/4'+
-          '</div>'+
-        '</div>'+
-      '</div>';
+    html += '<div class="sec-lbl">テクニカル — タイムフレーム別</div>';
+    html += card('5分足',  sig5m.label,  sig5m.sub,  sig5m.signal);
+    html += card('15分足', sig15m.label, sig15m.sub, sig15m.signal);
+    html += card('1時間足', sig1h.label,  sig1h.sub,  sig1h.signal);
+    html += card('日足 (1D)', sig1d.label, sig1d.sub, sig1d.signal);
+    html += card('週足 (1W)', sig1w.label, sig1w.sub, sig1w.signal);
+    html += card('月足 (1M)', sig1m.label, sig1m.sub, sig1m.signal);
 
-    panelHTMLs['trendline'] =
-      '<div class="panel">'+
-        '<div class="sec">トレンドライン ブレイク検出</div>'+
-        tlAlertHTML(tlM5,'5m')+
-        tlAlertHTML(tlM15,'15m')+
-        tlAlertHTML(tlH1,'1H')+
-        tlAlertHTML(tlD,'D')+
-        '<div class="chart-wrap"><canvas id="ch1d"></canvas></div>'+
-      '</div>';
+    html += '<div class="sec-lbl">テクニカル指標</div>';
+    html += card('MA乖離率 (25日MA)',
+      devPct !== null ? pct(devPct) : '---',
+      devSub, devSig);
+    html += card('RSI (14日)',
+      rsiVal !== null ? rsiVal.toFixed(1) : '---',
+      rsiSub, rsiSig);
 
-    panelHTMLs['daypred'] =
-      '<div class="panel">'+
-        '<div class="sec">本日の高値・安値予測</div>'+
-        [['R2 (強抵抗)',dp.ppR2,dp.ppR2-cur,'var(--bull)'],
-         ['R1 (抵抗)',dp.ppR1,dp.ppR1-cur,'rgba(255,61,90,.7)'],
-         ['ピボット',dp.piv,dp.piv-cur,'var(--gold)'],
-         ['S1 (サポ)',dp.ppS1,dp.ppS1-cur,'rgba(0,196,255,.7)'],
-         ['S2 (強サポ)',dp.ppS2,dp.ppS2-cur,'var(--bear)']].map(([lbl,val,dist,col])=>
-          '<div class="pv-row">'+
-            '<div class="pv-lbl">'+lbl+'</div>'+
-            '<div class="pv-val" style="color:'+col+'">'+fmt(val)+'</div>'+
-            '<div class="pv-dist" style="background:'+(dist>0?'rgba(255,61,90,.1)':'rgba(0,196,255,.1)')+
-              ';color:'+(dist>0?'var(--bull)':'var(--bear)')+'">'+sign(dist)+fmt(dist)+'</div>'+
-          '</div>'
-        ).join('')+
-      '</div>';
+    html += '<div class="sec-lbl">マクロ指標</div>';
+    html += card('VIX 恐怖指数',
+      vix ? vix.toFixed(2) : '---',
+      vixSub, vixSig);
+    html += card('米10年金利',
+      tnx ? tnx.toFixed(2)+'%' : '---',
+      tnxSub, tnxSig);
+    html += card('ドル円',
+      usd ? usd.toFixed(2) : '---',
+      usdSub, usdSig);
 
-    panelHTMLs['fib'] =
-      '<div class="panel">'+
-        '<div class="sec">フィボナッチ レジスタンス / サポート</div>'+
-        fibRows.map(f=>{
-          const near=Math.abs(f.price-cur)/cur<.005;
-          const cm={target:'rgba(255,61,90,.2)/var(--bull)',resist:'rgba(255,61,90,.1)/rgba(255,61,90,.6)',
-            mid:'rgba(245,200,66,.2)/var(--gold)',sup:'rgba(0,196,255,.2)/var(--bear)'};
-          const [bg,fc]=(cm[f.cls]||'rgba(74,86,104,.2)/var(--dim)').split('/');
-          return '<div class="fib-row"'+(near?' style="background:rgba(245,200,66,.05)"':'')+'>'+
-            '<div class="fib-lv">'+f.lv+'</div>'+
-            '<div class="fib-pr">'+fmt(f.price)+'</div>'+
-            '<div class="fib-tag" style="background:'+bg+';color:'+fc+'">'+f.tag+'</div>'+
-          '</div>';
-        }).join('')+
-      '</div>';
-
-    panelHTMLs['deviation'] =
-      '<div class="panel">'+
-        '<div class="sec">MA 乖離率</div>'+
-        '<div class="dev-period" id="devPeriod">25日MA</div>'+
-        '<div class="dev-big" id="devBig" style="color:'+(dev.dev25>0?'var(--bull)':'var(--bear)')+'">'+pct(dev.dev25)+'</div>'+
-        '<div style="text-align:center;margin:4px 0 8px"><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-family:var(--mono);font-size:10px;background:'+dev.bg+';color:'+dev.color+'">'+dev.status+'</span></div>'+
-        '<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;margin-bottom:8px">'+dev.warn+'</div>'+
-        '<div class="dev-gauge"><div class="dev-track">'+
-          '<div class="dev-fill-'+(dev.dev25>=0?'p':'n')+'" id="devFill" style="width:'+Math.min(50,Math.abs(dev.dev25)/dev.warnPct*42)+'%"></div>'+
-          '<div class="dev-mid"></div>'+
-        '</div></div>'+
-        '<div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--dim);margin:2px 2px 10px">'+
-          '<span style="color:var(--bear)">-'+dev.warnPct+'%</span><span>0</span><span style="color:var(--bull)">+'+dev.warnPct+'%</span>'+
-        '</div>'+
-        [['5日MA',dev.ma5,dev.dev5],['13日MA',dev.ma13,dev.dev13],['25日MA★',dev.ma25,dev.dev25],['75日MA',dev.ma75,dev.dev75]].map(([lbl,ma,dv])=>{
-          if(ma==null) return '';
-          return '<div class="dev-row" onclick="switchDev('+dv.toFixed(2)+',\''+lbl+'\')" style="cursor:pointer">'+
-            '<div class="dev-lbl">'+lbl+'</div>'+
-            '<div style="font-family:var(--mono);font-size:13px">'+fmt(ma)+'</div>'+
-            '<div style="font-family:var(--mono);font-size:11px;color:'+(dv>0?'var(--bull)':'var(--bear)')+'">'+pct(dv)+'</div>'+
-            '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-left:4px">▶</div>'+
-          '</div>';
-        }).join('')+
-        '<div class="dev-row"><div class="dev-lbl">⚠ 過熱ライン</div><div style="font-family:var(--mono);font-size:11px;color:var(--gold)">25MA ± '+dev.warnPct+'% 目安</div></div>'+
-      '</div>';
-
-    const cycHistHTML = cyc.hist.map(h=>
-      '<div class="cyc-hist">'+
-        '<div style="font-family:var(--mono);font-size:10px;color:var(--dim)">'+h.date+'</div>'+
-        '<div style="font-family:var(--mono);font-size:11px">'+h.price.toLocaleString()+'</div>'+
-        (h.intv?'<div style="font-family:var(--mono);font-size:10px;color:var(--gold)">+'+h.intv+'日</div>':'<div></div>')+
-        '<div style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:'+(h.type==='high'?'rgba(255,61,90,.15)':'rgba(0,196,255,.15)')+';color:'+(h.type==='high'?'var(--bull)':'var(--bear)')+'">'+
-          (h.manual?'📌 ':'')+(h.type==='high'?'🔴 高値':'🔵 安値')+'</div>'+
-      '</div>'
-    ).join('');
-
-    panelHTMLs['cycle'] =
-      '<div class="panel">'+
-        '<div class="sec">変化日サイクル</div>'+
-        '<div class="cyc-num" style="color:'+(cyc.toNext<=3?'var(--gold)':cyc.toNext<=7?'var(--text)':'var(--dim)')+'">'+cyc.toNext+'</div>'+
-        '<div class="cyc-lbl">日後に変化日</div>'+
-        '<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;margin-top:4px">予測: '+(cyc.nextDate.getMonth()+1)+'/'+(cyc.nextDate.getDate())+' | 平均: '+cyc.avg+'日</div>'+
-        (cyc.near?'<div class="tl-alert '+(cyc.toNext===0?'bu':'ok')+'" style="margin:10px 0">'+
-          '<div class="tl-ico">'+(cyc.toNext===0?'🔔':'⏰')+'</div>'+
-          '<div><div class="tl-ttl" style="color:var(--gold)">'+(cyc.toNext===0?'本日が変化日の可能性！':'変化日まで'+cyc.toNext+'日')+'</div>'+
-          '<div class="tl-sub">トレンド転換に注意</div></div></div>':'')+
-        '<div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px">'+
-          '<div style="font-family:var(--mono);font-size:9px;color:var(--dim)">前回</div>'+
-          '<div class="cyc-track">'+
-            '<div class="cyc-prog" style="width:'+Math.min(100,cyc.sinceL/cyc.avg*100)+'%"></div>'+
-            '<div class="cyc-dot" style="left:0%;background:var(--dim)"></div>'+
-            '<div class="cyc-dot" style="left:'+Math.min(94,cyc.sinceL/cyc.avg*100)+'%;background:var(--bear)"></div>'+
-            '<div class="cyc-dot" style="left:100%;background:var(--gold)"></div>'+
-          '</div>'+
-          '<div style="font-family:var(--mono);font-size:9px;color:var(--gold)">次回</div>'+
-        '</div>'+
-        '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;margin:10px 0 6px">転換点 履歴</div>'+
-        cycHistHTML+
-        (cyc.futHist.length?'<div style="margin:8px 0;padding:8px;background:rgba(245,200,66,.05);border:1px solid rgba(245,200,66,.2);border-radius:4px">'+
-          '<div style="font-family:var(--mono);font-size:9px;color:var(--gold);margin-bottom:6px">📌 登録済み未来の変化日</div>'+
-          cyc.futHist.map(f=>'<div class="cyc-hist">'+
-            '<div style="font-family:var(--mono);font-size:10px;color:var(--gold)">'+f.date+'</div>'+
-            '<div style="font-family:var(--mono);font-size:11px;color:var(--gold)">'+f.days+'日後</div>'+
-            '<div></div>'+
-            '<div style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:'+(f.type==='high'?'rgba(255,61,90,.15)':'rgba(0,196,255,.15)')+';color:'+(f.type==='high'?'var(--bull)':'var(--bear)')+'">'+
-              (f.type==='high'?'🔴 高値':'🔵 安値')+'</div></div>').join('')+'</div>':'')+
-        '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">'+
-          '<div style="font-family:var(--mono);font-size:9px;color:var(--gold);margin-bottom:8px">📌 変化日を手動登録</div>'+
-          '<div class="cyc-input-row">'+
-            '<input type="date" id="cycDate">'+
-            '<select id="cycType"><option value="high">🔴 高値転換</option><option value="low">🔵 安値転換</option></select>'+
-            '<button class="cyc-btn" onclick="addCyc()">追加</button>'+
-          '</div>'+
-          '<div id="cycList" style="margin-top:8px"></div>'+
-        '</div>'+
-      '</div>';
-
-    // ===== RENDER HTML =====
-    app.innerHTML =
-      '<div class="trend-banner '+oCls+'">'+
-        '<div class="trend-label">OVERALL TREND | '+inst.label+' / '+BASE_TF.toUpperCase()+'</div>'+
-        '<div class="trend-main">'+oMain+'</div>'+
-        '<div class="trend-sub">'+oSub+'</div>'+
-      '</div>'+
-      '<div class="tf-cells">'+dispTF.map(tfCell).join('')+'</div>'+
-      '<div class="price-card">'+
-        '<div class="pi"><div class="pi-lbl">現在値</div>'+
-        '<div class="pi-val '+(chg>=0?'up':'dn')+'">'+fmt(cur)+'</div>'+
-        '<div class="pi-sub">'+
-          '<span style="color:'+(chg>=0?'var(--bull)':'var(--bear)')+'">'+sign(chg)+fmt(chg)+' ('+pct(chgP)+')</span><br>'+
-          '<span style="font-size:9px;color:var(--dim)">'+prevLbl+'</span>'+
-        '</div></div>'+
-        '<div class="pi">'+
-          '<div class="pi-lbl">▲ 高値予測</div>'+
-          '<div style="font-family:var(--mono);font-size:16px;color:var(--bull)">'+fmt(dp.predH)+'</div>'+
-          '<div class="pi-lbl" style="margin-top:6px">▼ 安値予測</div>'+
-          '<div style="font-family:var(--mono);font-size:16px;color:var(--bear)">'+fmt(dp.predL)+'</div>'+
-        '</div>'+
-      '</div>'+
-      panelSettings.filter(p=>p.on).map(p=>panelHTMLs[p.id]||'').join('');
-
-        // draw charts
-    const _label = inst.label; // チャートラベル用
-        setTimeout(()=>{
-      // 1D：1時間足（全データ使用、lookback大きめ）
-      const tl1h_today = trendlineAnalysis(h1, d1);
-      drawChart('ch1d', h1, tl1h_today, _label+' 1D');
-    }, 150);
-
-    renderCycList();
-
+    app.innerHTML = html;
 
   } catch(e) {
-    clearInterval(timer);
-    document.getElementById('app').innerHTML=
-      '<div class="err-box">⚠ '+e.message+'<br><br>'+
-      '<span style="font-size:10px;opacity:.6">↻ボタンで再試行してください</span></div>';
+    document.getElementById('app').innerHTML =
+      '<div class="err">⚠ ' + e.message + '<br><br>'
+      + '<span style="font-size:10px;opacity:.6">↻ボタンで再試行</span></div>';
   }
-}
-
-
-
-function switchDev(dv, lbl) {
-  const p=document.getElementById('devPeriod');
-  const b=document.getElementById('devBig');
-  const f=document.getElementById('devFill');
-  if(!p||!b) return;
-  p.textContent=lbl;
-  b.textContent=(dv>0?'+':'')+dv.toFixed(2)+'%';
-  b.style.color=dv>0?'var(--bull)':'var(--bear)';
-}
-
-function addCyc() {
-  const d=document.getElementById('cycDate');
-  const t=document.getElementById('cycType');
-  if(!d||!d.value) return;
-  const list=loadCyc();
-  if(list.find(x=>x.date===d.value)){ alert('その日付はすでに登録されています'); return; }
-  list.push({date:d.value,type:t.value});
-  list.sort((a,b)=>a.date.localeCompare(b.date));
-  saveCyc(list);
-  loadData();
-}
-
-function removeCyc(date) {
-  saveCyc(loadCyc().filter(x=>x.date!==date));
-  loadData();
-}
-
-function renderCycList() {
-  const el=document.getElementById('cycList');
-  if(!el) return;
-  const list=loadCyc();
-  if(!list.length){ el.innerHTML='<div style="font-family:var(--mono);font-size:9px;color:var(--dim)">登録なし</div>'; return; }
-  el.innerHTML=list.map(d=>
-    '<div class="cyc-item">'+
-      '<span style="color:'+(d.type==='high'?'var(--bull)':'var(--bear)')+'">'+
-        (d.type==='high'?'🔴':'🔵')+' '+d.date+'</span>'+
-      '<button class="cyc-del" onclick="removeCyc(\''+d.date+'\')">✕</button>'+
-    '</div>'
-  ).join('');
 }
 
 // 自動更新
 let _autoTimer = null;
-function setAutoRefresh(sec) {
-  if(_autoTimer) { clearInterval(_autoTimer); _autoTimer = null; }
+function setAuto(sec) {
+  if (_autoTimer) { clearInterval(_autoTimer); _autoTimer=null; }
   localStorage.setItem('auto_refresh', sec);
-  if(parseInt(sec) > 0) {
-    _autoTimer = setInterval(loadData, parseInt(sec) * 1000);
-  }
+  if (parseInt(sec) > 0) _autoTimer = setInterval(loadAll, parseInt(sec)*1000);
 }
+const _saved = localStorage.getItem('auto_refresh') || '0';
+document.getElementById('autoSel').value = _saved;
+if (parseInt(_saved) > 0) _autoTimer = setInterval(loadAll, parseInt(_saved)*1000);
 
-// 保存された自動更新設定を復元
-const _savedRefresh = localStorage.getItem('auto_refresh') || '0';
-document.addEventListener('DOMContentLoaded', () => {
-  const sel = document.getElementById('autoRefresh');
-  if(sel) sel.value = _savedRefresh;
-  if(parseInt(_savedRefresh) > 0) {
-    _autoTimer = setInterval(loadData, parseInt(_savedRefresh) * 1000);
-  }
-});
-
-// =============================================
-// 設定メニュー・パネル並び替え
-// =============================================
-
-const PANELS = [
-  { id:'malines',    name:'MAライン抵抗値',          on:true },
-  { id:'mtf',        name:'MTF STATUS',              on:true },
-  { id:'trendline',  name:'トレンドライン検出',       on:true },
-  { id:'daypred',    name:'本日の高値・安値予測',     on:true },
-  { id:'fib',        name:'フィボナッチ',             on:true },
-  { id:'deviation',  name:'MA乖離率',                on:true },
-  { id:'cycle',      name:'変化日サイクル',           on:true },
-  { id:'sentiment',  name:'マーケットセンチメント', on:true },
-];
-
-const PANELS_KEY = 'panel_settings';
-function loadPanelSettings() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PANELS_KEY) || '[]');
-    if(saved.length) {
-      // 保存済みの順序・表示状態を復元
-      const result = [];
-      saved.forEach(s => {
-        const p = PANELS.find(p => p.id === s.id);
-        if(p) result.push({...p, on: s.on});
-      });
-      // 新しいパネルが追加されていたら末尾に追加
-      PANELS.forEach(p => { if(!result.find(r=>r.id===p.id)) result.push({...p}); });
-      return result;
-    }
-  } catch{}
-  return PANELS.map(p=>({...p}));
-}
-function savePanelSettings(panels) {
-  try { localStorage.setItem(PANELS_KEY, JSON.stringify(panels.map(p=>({id:p.id,on:p.on})))); } catch{}
-}
-
-let panelSettings = loadPanelSettings();
-
-function openSettings() {
-  document.getElementById('settingsOverlay').classList.add('open');
-  document.getElementById('settingsPanel').classList.add('open');
-  renderPanelList();
-}
-function closeSettings() {
-  document.getElementById('settingsOverlay').classList.remove('open');
-  document.getElementById('settingsPanel').classList.remove('open');
-}
-
-function renderPanelList() {
-  const el = document.getElementById('panelOrderList');
-  if(!el) return;
-  el.innerHTML = panelSettings.map((p,i) =>
-    '<div class="panel-item" data-idx="'+i+'">'+
-      '<div class="panel-item-drag" ontouchstart="touchDragStart(event,'+i+')" onmousedown="touchDragStart(event,'+i+')">☰</div>'+
-      '<div class="panel-item-name">'+p.name+'</div>'+
-      '<button class="panel-item-toggle '+(p.on?'on':'')+'" onclick="togglePanel('+i+')"></button>'+
-    '</div>'
-  ).join('');
-}
-
-function togglePanel(i) {
-  panelSettings[i].on = !panelSettings[i].on;
-  savePanelSettings(panelSettings);
-  renderPanelList();
-  loadData();
-}
-
-// タッチ対応ドラッグ
-let _dragSrc = null, _dragEl = null, _dragClone = null, _dragOffY = 0;
-
-function touchDragStart(e, i) {
-  e.preventDefault();
-  _dragSrc = i;
-  const item = e.currentTarget.closest('.panel-item');
-  const rect = item.getBoundingClientRect();
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  _dragOffY = clientY - rect.top;
-
-  // 掴んだ要素のクローンを作って画面上に追従させる
-  _dragClone = item.cloneNode(true);
-  _dragClone.style.cssText = 'position:fixed;left:'+rect.left+'px;width:'+rect.width+'px;'+
-    'background:var(--surface2);border:1px solid var(--gold);border-radius:5px;'+
-    'opacity:0.9;z-index:9999;pointer-events:none;top:'+(clientY-_dragOffY)+'px;';
-  document.body.appendChild(_dragClone);
-  item.style.opacity = '0.3';
-  _dragEl = item;
-
-  document.addEventListener('touchmove', touchDragMove, {passive:false});
-  document.addEventListener('touchend',  touchDragEnd);
-  document.addEventListener('mousemove', touchDragMove);
-  document.addEventListener('mouseup',   touchDragEnd);
-}
-
-function touchDragMove(e) {
-  e.preventDefault();
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  if(_dragClone) _dragClone.style.top = (clientY - _dragOffY) + 'px';
-
-  // どのアイテムの上にいるか判定
-  const items = document.querySelectorAll('.panel-item');
-  items.forEach(el => el.classList.remove('drag-over'));
-  items.forEach(el => {
-    const r = el.getBoundingClientRect();
-    if(clientY >= r.top && clientY <= r.bottom && el !== _dragEl) {
-      el.classList.add('drag-over');
-    }
-  });
-}
-
-function touchDragEnd(e) {
-  document.removeEventListener('touchmove', touchDragMove);
-  document.removeEventListener('touchend',  touchDragEnd);
-  document.removeEventListener('mousemove', touchDragMove);
-  document.removeEventListener('mouseup',   touchDragEnd);
-
-  if(_dragClone) { _dragClone.remove(); _dragClone = null; }
-  if(_dragEl) { _dragEl.style.opacity = ''; _dragEl = null; }
-
-  // ドロップ先を探す
-  const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-  const items = document.querySelectorAll('.panel-item');
-  let dropIdx = null;
-  items.forEach(el => {
-    el.classList.remove('drag-over');
-    const r = el.getBoundingClientRect();
-    if(clientY >= r.top && clientY <= r.bottom) {
-      dropIdx = parseInt(el.dataset.idx);
-    }
-  });
-
-  if(dropIdx !== null && dropIdx !== _dragSrc) {
-    const arr = [...panelSettings];
-    const [moved] = arr.splice(_dragSrc, 1);
-    arr.splice(dropIdx, 0, moved);
-    panelSettings = arr;
-    savePanelSettings(panelSettings);
-    renderPanelList();
-    loadData();
-  }
-  _dragSrc = null;
-}
-
-// パネルIDからHTMLを返す（loadData内で使用）
-function getPanelHTML(id, panels) {
-  return panels[id] || '';
-}
-
-// 保存された選択状態をプルダウンに反映
-document.getElementById('instrumentSelect').value = BASE_INST;
-document.getElementById('tfSelect').value = BASE_TF;
-loadData();
+loadAll();
 </script>
 </body>
 </html>
