@@ -520,17 +520,28 @@ function regressionTrendline(prices, indices, n) {
 function shortTermTrendlines(tf, atrVal) {
   const n = tf.closes.length - 1;
   const isDaily = tf.closes.length >= 60;
-  const {ph, pl} = pivots(tf, isDaily ? 5 : 3);
 
-  const recentH = ph.slice(-8);
-  const recentL = pl.slice(-8);
+  // 直近20本（日足=20営業日=約1ヶ月、短期足=直近データ）に絞る
+  const lookback = isDaily ? 20 : Math.min(40, Math.floor(tf.closes.length / 2));
+  const tfR = {
+    closes: tf.closes.slice(-lookback),
+    highs:  tf.highs.slice(-lookback),
+    lows:   tf.lows.slice(-lookback),
+  };
+  const offset = tf.closes.length - lookback;
+  const lb = isDaily ? 3 : 3;
+  const {ph, pl} = pivots(tfR, lb);
+  ph.forEach(p => p.idx += offset);
+  pl.forEach(p => p.idx += offset);
 
   // レジスタンス：高値3点以上で回帰ライン
+  const recentH = ph.slice(-6);
   const resLine = recentH.length >= 3
     ? regressionTrendline(recentH.map(p=>p.price), recentH.map(p=>p.idx), n)
     : null;
 
   // サポート：安値3点以上で回帰ライン（独立計算）
+  const recentL = pl.slice(-6);
   const supLine = recentL.length >= 3
     ? regressionTrendline(recentL.map(p=>p.price), recentL.map(p=>p.idx), n)
     : null;
