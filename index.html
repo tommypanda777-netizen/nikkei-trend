@@ -177,6 +177,8 @@ function loadPal(){  try{const p=JSON.parse(localStorage.getItem('chart_pal')||'
 const VK = () => 'chart_view_'+SYM;
 function saveView(){ try{localStorage.setItem(VK(),JSON.stringify(VIEW));}catch{} }
 function loadView(){ try{const v=JSON.parse(localStorage.getItem(VK())||'null'); if(v){Object.keys(v).forEach(k=>VIEW[k]=v[k]);}}catch{} }
+function saveLocks(){ try{localStorage.setItem('chart_locks',JSON.stringify([...LOCKED]));}catch{} }
+function loadLocks(){ try{const a=JSON.parse(localStorage.getItem('chart_locks')||'[]'); LOCKED.clear(); a.forEach(id=>LOCKED.add(id));}catch{} }
 
 // ==================== UNDO ====================
 function pushUndo(){ UNDO.push(JSON.stringify(LINES)); REDO=[]; updateUndoBtns(); }
@@ -674,6 +676,7 @@ function palEditOpen(i){
 function toggleLock(tfId){
   if(LOCKED.has(tfId))LOCKED.delete(tfId);
   else LOCKED.add(tfId);
+  saveLocks();
   const btn=document.getElementById('lock_'+tfId);
   if(btn){
     btn.classList.toggle('locked',LOCKED.has(tfId));
@@ -820,6 +823,7 @@ window.addEventListener('resize',renderAll);
 
 loadCfg();
 loadPal();
+loadLocks();
 SYM=CFG.sym||'NKD=F';
 
 buildSymSel();
