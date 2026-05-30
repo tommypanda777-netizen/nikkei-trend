@@ -16,7 +16,8 @@
   --bull:#ff3d5a;--bear:#00c4ff;--gold:#f5c842;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:hidden;overflow-y:auto;}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:hidden;}
+#charts{overflow-y:auto;}
 
 #toolbar{
   position:sticky;top:0;z-index:100;
@@ -81,7 +82,7 @@ canvas{display:block;width:100%;touch-action:none;}
 </head>
 <body>
 <div id="toolbar">
-  <!-- Row 1: Symbol + Tools + Delete -->
+  <!-- Row 1: Symbol + Tools -->
   <div class="tb-row">
     <select class="tb-sel" id="symSel" onchange="setSym(this.value)" style="width:88px">
       <option value="NKD=F">225先物</option>
@@ -89,14 +90,34 @@ canvas{display:block;width:100%;touch-action:none;}
       <option value="1579.T">1579</option>
     </select>
     <div class="tb-sep"></div>
-    <button class="tb-btn active" data-tool="pan" onclick="setTool(this)">✋</button>
+    <button class="tb-btn active" data-tool="pan" onclick="setTool(this)" title="移動">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#e8e8e8" stroke-width="1.4" stroke-linecap="round">
+        <path d="M8 1v14M1 8h14M8 1l-2 3M8 1l2 3M8 15l-2-3M8 15l2-3M1 8l3-2M1 8l3 2M15 8l-3-2M15 8l-3 2"/>
+      </svg>
+    </button>
     <button class="tb-btn tool-icon" data-tool="line" onclick="setTool(this)">╱</button>
     <button class="tb-btn tool-icon" data-tool="hline" onclick="setTool(this)">―</button>
     <button class="tb-btn tool-icon" data-tool="channel" onclick="setTool(this)">⫛</button>
     <div class="tb-sep"></div>
-    <button class="tb-btn" id="btnDel" onclick="toggleDelMode()" style="font-size:20px;padding:0 10px">🗑</button>
+    <button class="tb-btn" id="btnDel" onclick="toggleDelMode()" title="削除">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#e8e8e8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"/>
+      </svg>
+    </button>
   </div>
-  <!-- Row 2: AutoRefresh + Refresh + Time + Undo/Redo + Palette + Style -->
+  <!-- Row 2: Palette + Style -->
+  <div class="tb-row">
+    <div class="pal-slot active" id="pal0"></div>
+    <div class="pal-slot" id="pal1"></div>
+    <div class="pal-slot" id="pal2"></div>
+    <div class="pal-slot" id="pal3"></div>
+    <div class="pal-slot" id="pal4"></div>
+    <input type="color" id="palPicker" style="width:0;height:0;opacity:0;position:absolute">
+    <div class="tb-sep"></div>
+    <button class="sty-btn active" data-sty="solid" onclick="setStyle(this)">実線</button>
+    <button class="sty-btn" data-sty="dash" onclick="setStyle(this)">点線</button>
+  </div>
+  <!-- Row 3: AutoRefresh + Refresh + Time + Undo/Redo -->
   <div class="tb-row">
     <select class="tb-sel" id="autoSel" onchange="setAuto(this.value)" style="width:76px">
       <option value="0">手動</option>
@@ -110,18 +131,7 @@ canvas{display:block;width:100%;touch-action:none;}
     <div class="tb-sep"></div>
     <button class="tb-btn icon-btn disabled" id="btnUndo" onclick="undo()">↩</button>
     <button class="tb-btn icon-btn disabled" id="btnRedo" onclick="redo()">↪</button>
-    <div class="tb-sep"></div>
-    <div class="pal-slot active" id="pal0" onclick="palClick(0)"></div>
-    <div class="pal-slot" id="pal1" onclick="palClick(1)"></div>
-    <div class="pal-slot" id="pal2" onclick="palClick(2)"></div>
-    <div class="pal-slot" id="pal3" onclick="palClick(3)"></div>
-    <div class="pal-slot" id="pal4" onclick="palClick(4)"></div>
-    <input type="color" id="palPicker" style="width:0;height:0;opacity:0;position:absolute">
-    <div class="tb-sep"></div>
-    <button class="sty-btn active" data-sty="solid" onclick="setStyle(this)">実線</button>
-    <button class="sty-btn" data-sty="dash" onclick="setStyle(this)">点線</button>
-  </div>
-</div>
+  </div></div>
 
 <div id="charts">
   <div class="chart-wrap"><div class="tf-label">60分足</div><canvas id="cv_1h"></canvas><div class="price-tag" id="tag_1h"></div></div>
@@ -134,9 +144,9 @@ canvas{display:block;width:100%;touch-action:none;}
 <script>
 // ===== CONFIG =====
 const TFS=[
-  {id:'1h', label:'60分足', interval:'1h',  range:'5d', h:165},
-  {id:'15m',label:'15分足', interval:'15m', range:'2d', h:155},
-  {id:'5m', label:'5分足',  interval:'5m',  range:'1d', h:155},
+  {id:'1h', label:'60分足', interval:'1h',  range:'5d', h:198},
+  {id:'15m',label:'15分足', interval:'15m', range:'2d', h:186},
+  {id:'5m', label:'5分足',  interval:'5m',  range:'1d', h:186},
 ];
 const PAD={l:4,r:54,t:10,b:18};
 
@@ -294,14 +304,16 @@ function renderChart(tfId){
     ctx.fillText(Math.round(p).toLocaleString(),W-PAD.r+3,yy+3);
   }
 
-  // candles
-  const bw=Math.max(1,sc.cw/bars.length*0.55);
-  bars.forEach(bar=>{
-    const cx=timeToX(bar.t,sc);
+  // candles - limit to keep width >= 2px
+  const maxCandles = Math.floor(sc.cw / 2);
+  const dispBars = bars.length > maxCandles ? bars.slice(-maxCandles) : bars;
+  const bw = Math.max(2, sc.cw / dispBars.length * 0.6);
+  dispBars.forEach((bar,i)=>{
+    const cx = PAD.l + (i + 0.5) / dispBars.length * sc.cw;
     if(cx<PAD.l-bw||cx>W-PAD.r+bw) return;
     const bull=bar.c>=bar.o;
     ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
-    ctx.lineWidth=.8;
+    ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(cx,priceToY(bar.h,sc)); ctx.lineTo(cx,priceToY(bar.l,sc)); ctx.stroke();
     const y1=priceToY(Math.max(bar.o,bar.c),sc), y2=priceToY(Math.min(bar.o,bar.c),sc);
     ctx.fillRect(cx-bw/2,y1,bw,Math.max(1,y2-y1));
@@ -633,28 +645,43 @@ function renderPalette(){
 }
 function palClick(i){
   PAL_ACTIVE=i; COLOR=PALETTE[i]; renderPalette();
+  // Change selected line color
+  if(SELECTED){
+    pushUndo();
+    const l=LINES.find(l=>l.id===SELECTED);
+    if(l){ l.color=COLOR; saveLines(); renderAll(); }
+  }
 }
-function palEdit(e,i){
-  e.preventDefault();
+function palEdit(i){
   _palEditIdx=i;
   const picker=document.getElementById('palPicker');
   picker.value=PALETTE[i];
   picker.oninput=picker.onchange=function(){
     PALETTE[_palEditIdx]=this.value;
     savePalette(); renderPalette();
-    if(_palEditIdx===PAL_ACTIVE) COLOR=this.value;
+    if(_palEditIdx===PAL_ACTIVE){ COLOR=this.value; }
   };
   picker.click();
 }
-// Long-press for palette edit on touch
-TFS.forEach(()=>{}); // placeholder, long press attached after DOM ready
-document.querySelectorAll('.pal-slot').forEach((el,i)=>{
-  let lt=null;
-  el.addEventListener('touchstart',()=>{ lt=setTimeout(()=>palEdit({preventDefault:()=>{}},i),500); },{passive:true});
-  el.addEventListener('touchend',()=>{ if(lt){clearTimeout(lt);lt=null;} },{passive:true});
-});
 
-function setColorHex(c){ COLOR=c; } // fallback
+// Attach palette events after DOM ready
+function attachPaletteEvents(){
+  for(let i=0;i<5;i++){
+    const el=document.getElementById('pal'+i);
+    if(!el) continue;
+    // Long press to edit
+    let lt=null;
+    el.addEventListener('touchstart', e=>{
+      lt=setTimeout(()=>{ lt=null; palEdit(i); },500);
+    },{passive:true});
+    el.addEventListener('touchend', ()=>{ if(lt){clearTimeout(lt);lt=null;palClick(i);} },{passive:true});
+    el.addEventListener('touchmove', ()=>{ if(lt){clearTimeout(lt);lt=null;} },{passive:true});
+    el.addEventListener('click', ()=>palClick(i));
+    el.addEventListener('contextmenu', e=>{ e.preventDefault(); palEdit(i); });
+  }
+}
+
+function setColorHex(c){ COLOR=c; }
 
 // ===== LINE ENDPOINT DRAG (angle edit) =====
 // In pan mode, if touch is near an endpoint → drag that endpoint
@@ -683,6 +710,7 @@ function toast(msg){
 
 window.addEventListener('resize',renderAll);
 loadPalette();
+attachPaletteEvents();
 loadAll();
 </script>
 </body>
