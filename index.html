@@ -77,7 +77,7 @@ canvas{display:block;width:100%;touch-action:none;}
     <button class="tb-btn" id="btnDel" onclick="toggleDel()">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 3.5h11M4 3.5V2h6v1.5M5 6v5M9 6v5M2.5 3.5l1 8h7l1-8"/></svg>
     </button>
-    <button class="tb-btn" onclick="openSettings()">
+    <button class="tb-btn" onclick="openSettings()" style="margin-left:auto">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="7" cy="7" r="2"/><circle cx="7" cy="7" r="4.5"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.8 2.8l1 1M10.2 10.2l1 1M2.8 11.2l1-1M10.2 3.8l1-1"/></svg>
     </button>
   </div>
@@ -174,6 +174,9 @@ function saveCfg(){  try{localStorage.setItem('chart_cfg',JSON.stringify(CFG));}
 function loadCfg(){  try{const c=JSON.parse(localStorage.getItem('chart_cfg')||'{}'); Object.assign(CFG,c);}catch{} }
 function savePal(){  try{localStorage.setItem('chart_pal',JSON.stringify(PALETTE));}catch{} }
 function loadPal(){  try{const p=JSON.parse(localStorage.getItem('chart_pal')||'null'); if(p)PALETTE=p;}catch{} }
+const VK = () => 'chart_view_'+SYM;
+function saveView(){ try{localStorage.setItem(VK(),JSON.stringify(VIEW));}catch{} }
+function loadView(){ try{const v=JSON.parse(localStorage.getItem(VK())||'null'); if(v){Object.keys(v).forEach(k=>VIEW[k]=v[k]);}}catch{} }
 
 // ==================== UNDO ====================
 function pushUndo(){ UNDO.push(JSON.stringify(LINES)); REDO=[]; updateUndoBtns(); }
@@ -210,6 +213,7 @@ async function fetchYahoo(sym,interval,range){
 
 async function loadAll(){
   document.getElementById('updTime').textContent='…';
+  loadView();
   const tfs=CFG.order.map(id=>TF_DEFS[id]);
   const results=await Promise.allSettled(tfs.map(tf=>fetchYahoo(SYM,tf.interval,tf.range)));
   CFG.order.forEach((id,i)=>{
@@ -445,7 +449,7 @@ function attachChart(tfId){
     // Delete mode
     if(DEL_MODE){
       const hit=[...LINES].reverse().find(l=>hitLine(l,p.x,p.y,sc));
-      if(hit){pushUndo(); LINES=LINES.filter(l=>l.id!==hit.id); saveLines(); renderAll(); toast('削除');}
+      if(hit){pushUndo(); LINES=LINES.filter(l=>l.id!==hit.id); saveLines(); renderAll();}
       return;
     }
 
@@ -559,8 +563,8 @@ function attachChart(tfId){
       state=null; return;
     }
 
-    if(state.type==='pinch'){state=null;return;}
-    if(state.type==='pan'){state=null;return;}
+    if(state.type==='pinch'){state=null;saveView();return;}
+    if(state.type==='pan'){state=null;saveView();return;}
 
     // draw end
     if(state.type==='draw'&&DRAW){
