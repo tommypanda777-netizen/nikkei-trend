@@ -81,42 +81,42 @@ canvas{display:block;width:100%;touch-action:none;}
 </head>
 <body>
 <div id="toolbar">
+  <!-- Row 1: Symbol + Tools + Delete -->
   <div class="tb-row">
-    <select class="tb-sel" id="symSel" onchange="setSym(this.value)">
+    <select class="tb-sel" id="symSel" onchange="setSym(this.value)" style="width:88px">
       <option value="NKD=F">225先物</option>
-      <option value="1570.T">1570 レバ</option>
-      <option value="1579.T">1579 ETN</option>
+      <option value="1570.T">1570</option>
+      <option value="1579.T">1579</option>
     </select>
-    <select class="tb-sel" id="autoSel" onchange="setAuto(this.value)">
-      <option value="0">手動更新</option>
+    <div class="tb-sep"></div>
+    <button class="tb-btn active" data-tool="pan" onclick="setTool(this)">✋</button>
+    <button class="tb-btn tool-icon" data-tool="line" onclick="setTool(this)">╱</button>
+    <button class="tb-btn tool-icon" data-tool="hline" onclick="setTool(this)">―</button>
+    <button class="tb-btn tool-icon" data-tool="channel" onclick="setTool(this)">⫛</button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" id="btnDel" onclick="toggleDelMode()" style="font-size:20px;padding:0 10px">🗑</button>
+  </div>
+  <!-- Row 2: AutoRefresh + Refresh + Time + Undo/Redo + Palette + Style -->
+  <div class="tb-row">
+    <select class="tb-sel" id="autoSel" onchange="setAuto(this.value)" style="width:76px">
+      <option value="0">手動</option>
       <option value="30">30秒</option>
       <option value="60">1分</option>
       <option value="180">3分</option>
       <option value="300">5分</option>
     </select>
+    <button class="tb-btn icon-btn" onclick="loadAll()">↻</button>
+    <span id="updTime" style="font-size:16px;color:#e8e8e8;min-width:48px">---</span>
     <div class="tb-sep"></div>
-    <button class="tb-btn active" data-tool="pan" onclick="setTool(this)">✋</button>
-    <button class="tb-btn" data-tool="line" onclick="setTool(this)">╱</button>
-    <button class="tb-btn" data-tool="hline" onclick="setTool(this)">―</button>
-    <button class="tb-btn" data-tool="channel" onclick="setTool(this)">⫛</button>
+    <button class="tb-btn icon-btn disabled" id="btnUndo" onclick="undo()">↩</button>
+    <button class="tb-btn icon-btn disabled" id="btnRedo" onclick="redo()">↪</button>
     <div class="tb-sep"></div>
-    <button class="tb-btn" id="btnDel" onclick="toggleDelMode()" style="font-size:18px">🗑</button>
-    <button class="tb-btn disabled" id="btnUndo" onclick="undo()" style="font-size:18px">↩</button>
-    <button class="tb-btn disabled" id="btnRedo" onclick="redo()" style="font-size:18px">↪</button>
-    <button class="tb-btn" onclick="loadAll()" style="font-size:18px">↻</button>
-    <span id="updTime" style="font-size:10px;color:#888;margin-left:auto">---</span>
-  </div>
-  <div class="tb-row">
-    <div class="color-dot active" style="background:#ffffff" data-color="#ffffff" onclick="setColor(this)"></div>
-    <div class="color-dot" style="background:#ff3d5a" data-color="#ff3d5a" onclick="setColor(this)"></div>
-    <div class="color-dot" style="background:#00c4ff" data-color="#00c4ff" onclick="setColor(this)"></div>
-    <div class="color-dot" style="background:#f5c842" data-color="#f5c842" onclick="setColor(this)"></div>
-    <div class="color-dot" style="background:#44ff88" data-color="#44ff88" onclick="setColor(this)"></div>
-    <div class="color-dot" style="background:#ff8844" data-color="#ff8844" onclick="setColor(this)"></div>
-    <div class="color-dot" style="background:#cc88ff" data-color="#cc88ff" onclick="setColor(this)"></div>
-    <input type="color" id="colorPicker" value="#ffffff"
-      style="width:24px;height:24px;border:none;border-radius:50%;cursor:pointer;padding:0;background:none;"
-      onchange="setColorHex(this.value)">
+    <div class="pal-slot active" id="pal0" onclick="palClick(0)"></div>
+    <div class="pal-slot" id="pal1" onclick="palClick(1)"></div>
+    <div class="pal-slot" id="pal2" onclick="palClick(2)"></div>
+    <div class="pal-slot" id="pal3" onclick="palClick(3)"></div>
+    <div class="pal-slot" id="pal4" onclick="palClick(4)"></div>
+    <input type="color" id="palPicker" style="width:0;height:0;opacity:0;position:absolute">
     <div class="tb-sep"></div>
     <button class="sty-btn active" data-sty="solid" onclick="setStyle(this)">実線</button>
     <button class="sty-btn" data-sty="dash" onclick="setStyle(this)">点線</button>
