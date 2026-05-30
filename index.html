@@ -304,19 +304,30 @@ function renderChart(tfId){
     ctx.fillText(Math.round(p).toLocaleString(),W-PAD.r+3,yy+3);
   }
 
-  // candles - limit to keep width >= 2px
-  const maxCandles = Math.floor(sc.cw / 2);
-  const dispBars = bars.length > maxCandles ? bars.slice(-maxCandles) : bars;
-  const bw = Math.max(2, sc.cw / dispBars.length * 0.6);
-  dispBars.forEach((bar,i)=>{
-    const cx = PAD.l + (i + 0.5) / dispBars.length * sc.cw;
-    if(cx<PAD.l-bw||cx>W-PAD.r+bw) return;
-    const bull=bar.c>=bar.o;
-    ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
-    ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(cx,priceToY(bar.h,sc)); ctx.lineTo(cx,priceToY(bar.l,sc)); ctx.stroke();
-    const y1=priceToY(Math.max(bar.o,bar.c),sc), y2=priceToY(Math.min(bar.o,bar.c),sc);
-    ctx.fillRect(cx-bw/2,y1,bw,Math.max(1,y2-y1));
+  // candles
+  const totalBars = bars.length;
+  const bwFull = sc.cw / totalBars;
+  const bw = Math.max(1.5, bwFull * 0.6);
+  bars.forEach((bar,i)=>{
+    const cx = timeToX(bar.t, sc);
+    if(cx < PAD.l - bw*2 || cx > W - PAD.r + bw*2) return;
+    const bull = bar.c >= bar.o;
+    ctx.strokeStyle = ctx.fillStyle = bull ? '#ff3d5a' : '#00c4ff';
+    ctx.lineWidth = Math.min(1, bwFull * 0.4);
+    // wick
+    ctx.beginPath(); ctx.moveTo(cx, priceToY(bar.h,sc)); ctx.lineTo(cx, priceToY(bar.l,sc)); ctx.stroke();
+    // body - only draw as rect if wide enough
+    const y1 = priceToY(Math.max(bar.o,bar.c),sc);
+    const y2 = priceToY(Math.min(bar.o,bar.c),sc);
+    const bodyH = Math.max(1, y2-y1);
+    if(bw >= 2) {
+      ctx.fillRect(cx - bw/2, y1, bw, bodyH);
+    } else {
+      // too narrow: just color the wick differently
+      ctx.strokeStyle = bull ? '#ff3d5a' : '#00c4ff';
+      ctx.lineWidth = Math.max(1, bw);
+      ctx.beginPath(); ctx.moveTo(cx, y1); ctx.lineTo(cx, y2); ctx.stroke();
+    }
   });
 
   // current price
@@ -437,6 +448,13 @@ TFS.forEach(tf=>{
 
   function onStart(e){
     e.preventDefault();
+    // Initialize pinch data immediately for any 2-finger touch
+    if(e.touches&&e.touches.length>=2){
+      pinchDist0=getPinchDist(e);
+      pinchDx0=Math.abs(e.touches[0].clientX-e.touches[1].clientX);
+      pinchDy0=Math.abs(e.touches[0].clientY-e.touches[1].clientY);
+      return;
+    }
     const pos=getPos(e);
     const sc=getScale(tf.id); if(!sc) return;
 
@@ -547,7 +565,7 @@ TFS.forEach(tf=>{
     if(panStart&&TOOL==='pan'){
       const curT=xToTime(pos.x,sc);
       const dT=panStart.t-curT;
-      const v=VIEW[tf.id]||{offsetT:0,scaleT:1};
+      const v=VIEW[tf.id]||{offsetT:0,scaleT:1,offsetP:0,scaleP:1};
       v.offsetT+=dT;
       VIEW[tf.id]=v;
       renderAll(); return;
@@ -708,9 +726,17 @@ function toast(msg){
   _toastTimer=setTimeout(()=>el.classList.remove('show'),2000);
 }
 
-window.addEventListener('resize',renderAll);
-loadPalette();
-attachPaletteEvents();
+window.addEventListener('resize', renderAll);
+// Run palette events after DOM is fully ready
+window.addEventListener('DOMContentLoaded', ()=>{
+  loadPalette();
+  attachPaletteEvents();
+});
+// Also try immediately in case DOMContentLoaded already fired
+if(document.readyState !== 'loading'){
+  loadPalette();
+  attachPaletteEvents();
+}
 loadAll();
 </script>
 </body>
