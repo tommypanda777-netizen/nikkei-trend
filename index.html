@@ -5,14 +5,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="N225 Chart">
+<meta name="apple-mobile-web-app-title" content="チャート作図">
 <link rel="apple-touch-icon" href="icon.jpg">
-<title>N225 Chart</title>
+<title>チャート作図</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#080a0d;--surface:#111418;--border:#1e2530;
-  --text:#d8e4f0;--dim:#4a5a6e;--mono:'Share Tech Mono',monospace;
+  --bg:#0a0a0a;--surface:#181818;--border:#1e2530;
+  --text:#e8e8e8;--dim:#4a5a6e;--mono:'Share Tech Mono',monospace;
   --bull:#ff3d5a;--bear:#00c4ff;--gold:#f5c842;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -43,8 +43,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:h
 .sty-btn{height:26px;padding:0 9px;border-radius:3px;border:1px solid var(--border);
   background:var(--surface);color:var(--dim);font-family:var(--mono);font-size:11px;cursor:pointer;}
 .sty-btn.active{border-color:var(--gold);color:var(--gold);}
+.tb-sel{height:34px;padding:0 10px;border-radius:5px;border:1px solid var(--border);
+  background:var(--surface);color:#eef4ff;font-family:var(--mono);font-size:12px;
+  cursor:pointer;color-scheme:dark;}
 
-.chart-wrap{position:relative;border-bottom:1px solid var(--border);overflow:hidden;}
+.chart-wrap{position:relative;border-bottom:2px solid #3a3a3a;overflow:hidden;}
 canvas{display:block;width:100%;touch-action:none;}
 .price-tag{position:absolute;right:0;font-size:10px;font-family:var(--mono);
   background:var(--gold);color:#000;padding:1px 5px;border-radius:2px 0 0 2px;
@@ -63,22 +66,29 @@ canvas{display:block;width:100%;touch-action:none;}
 <body>
 <div id="toolbar">
   <div class="tb-row">
-    <button class="sym-btn active" data-sym="NKD=F" onclick="setSym(this)">225先物</button>
-    <button class="sym-btn" data-sym="1570.T" onclick="setSym(this)">1570</button>
-    <button class="sym-btn" data-sym="1579.T" onclick="setSym(this)">1579</button>
+    <select class="tb-sel" id="symSel" onchange="setSym(this.value)">
+      <option value="NKD=F">225先物</option>
+      <option value="1570.T">1570 レバ</option>
+      <option value="1579.T">1579 ETN</option>
+    </select>
+    <select class="tb-sel" id="autoSel" onchange="setAuto(this.value)">
+      <option value="0">手動更新</option>
+      <option value="30">30秒</option>
+      <option value="60">1分</option>
+      <option value="180">3分</option>
+      <option value="300">5分</option>
+    </select>
     <div class="tb-sep"></div>
-    <button class="tb-btn" onclick="loadAll()">↻</button>
-    <span id="updTime" style="font-size:10px;color:var(--dim);margin-left:auto">---</span>
-  </div>
-  <div class="tb-row">
-    <button class="tb-btn active" data-tool="pan" onclick="setTool(this)">✋ 移動</button>
-    <button class="tb-btn" data-tool="line" onclick="setTool(this)">╱ 直線</button>
-    <button class="tb-btn" data-tool="hline" onclick="setTool(this)">― 水平</button>
-    <button class="tb-btn" data-tool="channel" onclick="setTool(this)">⫛ チャネル</button>
+    <button class="tb-btn active" data-tool="pan" onclick="setTool(this)">✋</button>
+    <button class="tb-btn" data-tool="line" onclick="setTool(this)">╱</button>
+    <button class="tb-btn" data-tool="hline" onclick="setTool(this)">―</button>
+    <button class="tb-btn" data-tool="channel" onclick="setTool(this)">⫛</button>
     <div class="tb-sep"></div>
-    <button class="tb-btn" id="btnDel" onclick="toggleDelMode()">🗑</button>
-    <button class="tb-btn disabled" id="btnUndo" onclick="undo()">↩</button>
-    <button class="tb-btn disabled" id="btnRedo" onclick="redo()">↪</button>
+    <button class="tb-btn" id="btnDel" onclick="toggleDelMode()" style="font-size:18px">🗑</button>
+    <button class="tb-btn disabled" id="btnUndo" onclick="undo()" style="font-size:18px">↩</button>
+    <button class="tb-btn disabled" id="btnRedo" onclick="redo()" style="font-size:18px">↪</button>
+    <button class="tb-btn" onclick="loadAll()" style="font-size:18px">↻</button>
+    <span id="updTime" style="font-size:10px;color:#888;margin-left:auto">---</span>
   </div>
   <div class="tb-row">
     <div class="color-dot active" style="background:#ffffff" data-color="#ffffff" onclick="setColor(this)"></div>
@@ -98,7 +108,6 @@ canvas{display:block;width:100%;touch-action:none;}
 </div>
 
 <div id="charts">
-  <div class="chart-wrap"><div class="tf-label">日足</div><canvas id="cv_1d"></canvas><div class="price-tag" id="tag_1d"></div></div>
   <div class="chart-wrap"><div class="tf-label">60分足</div><canvas id="cv_1h"></canvas><div class="price-tag" id="tag_1h"></div></div>
   <div class="chart-wrap"><div class="tf-label">15分足</div><canvas id="cv_15m"></canvas><div class="price-tag" id="tag_15m"></div></div>
   <div class="chart-wrap"><div class="tf-label">5分足</div><canvas id="cv_5m"></canvas><div class="price-tag" id="tag_5m"></div></div>
@@ -109,7 +118,6 @@ canvas{display:block;width:100%;touch-action:none;}
 <script>
 // ===== CONFIG =====
 const TFS=[
-  {id:'1d', label:'日足',   interval:'1d',  range:'6mo',h:185},
   {id:'1h', label:'60分足', interval:'1h',  range:'5d', h:165},
   {id:'15m',label:'15分足', interval:'15m', range:'2d', h:155},
   {id:'5m', label:'5分足',  interval:'5m',  range:'1d', h:155},
@@ -126,7 +134,7 @@ let SELECTED=null; // selected line id for move
 let DEL_MODE=false;
 
 // Per-chart view state (pan/zoom)
-const VIEW={}; // tfId → {offsetT, scaleT}  offsetT=seconds shifted, scaleT=zoom factor
+const VIEW={}; // tfId → {offsetT, scaleT, offsetP, scaleP}
 
 // ===== STORAGE =====
 function storageKey(){ return 'n225_lines_v4_'+SYM; }
@@ -184,18 +192,32 @@ async function fetchYahoo(sym,interval,range){
 async function loadAll(){
   document.getElementById('updTime').textContent='取得中...';
   const res=await Promise.allSettled(TFS.map(tf=>fetchYahoo(SYM,tf.interval,tf.range)));
-  TFS.forEach((tf,i)=>{ DATA[tf.id]=res[i].value||null; VIEW[tf.id]={offsetT:0,scaleT:1}; });
+  TFS.forEach((tf,i)=>{ DATA[tf.id]=res[i].value||null; VIEW[tf.id]={offsetT:0,scaleT:1,offsetP:0,scaleP:1}; });
   loadLines();
   renderAll();
   const n=new Date();
   document.getElementById('updTime').textContent=n.getHours()+':'+String(n.getMinutes()).padStart(2,'0');
 }
-function setSym(btn){
-  SYM=btn.dataset.sym;
-  document.querySelectorAll('.sym-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+function setSym(val){
+  SYM=val;
+  localStorage.setItem('sym',val);
   loadAll();
 }
+
+let _autoTimer=null;
+function setAuto(sec){
+  if(_autoTimer){ clearInterval(_autoTimer); _autoTimer=null; }
+  localStorage.setItem('auto_refresh',sec);
+  if(parseInt(sec)>0) _autoTimer=setInterval(loadAll,parseInt(sec)*1000);
+}
+
+// restore saved sym/auto
+const _savedSym=localStorage.getItem('sym')||'NKD=F';
+SYM=_savedSym;
+document.getElementById('symSel').value=_savedSym;
+const _savedAuto=localStorage.getItem('auto_refresh')||'0';
+document.getElementById('autoSel').value=_savedAuto;
+if(parseInt(_savedAuto)>0) _autoTimer=setInterval(loadAll,parseInt(_savedAuto)*1000);
 
 // ===== SCALE =====
 function getScale(tfId){
@@ -204,17 +226,22 @@ function getScale(tfId){
   const cv=document.getElementById('cv_'+tfId);
   const W=cv.offsetWidth||window.innerWidth, H=tf.h;
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
-  const v=VIEW[tfId]||{offsetT:0,scaleT:1};
+  const v=VIEW[tfId]||{offsetT:0,scaleT:1,offsetP:0,scaleP:1};
 
   const rawMinT=bars[0].t, rawMaxT=bars[bars.length-1].t;
   const rawTR=rawMaxT-rawMinT||1;
-  // Apply zoom and pan
+  // Apply time zoom and pan
   const visibleTR=rawTR/v.scaleT;
   const midT=(rawMinT+rawMaxT)/2 + v.offsetT;
   const minT=midT-visibleTR/2, maxT=midT+visibleTR/2;
 
-  const minP=Math.min(...bars.map(b=>b.l));
-  const maxP=Math.max(...bars.map(b=>b.h));
+  // Apply price zoom and pan
+  const rawMinP=Math.min(...bars.map(b=>b.l));
+  const rawMaxP=Math.max(...bars.map(b=>b.h));
+  const rawVR=rawMaxP-rawMinP||1;
+  const visibleVR=rawVR/(v.scaleP||1);
+  const midP=(rawMinP+rawMaxP)/2 + (v.offsetP||0);
+  const minP=midP-visibleVR/2, maxP=midP+visibleVR/2;
   const vr=maxP-minP||1;
   return {bars,W,H,cw,ch,minP,maxP,vr,minT,maxT,tr:maxT-minT||1};
 }
@@ -238,16 +265,16 @@ function renderChart(tfId){
   ctx.fillStyle='#080a0d'; ctx.fillRect(0,0,W,H);
 
   const bars=DATA[tfId];
-  if(!bars){ ctx.fillStyle='#4a5a6e'; ctx.font='12px Share Tech Mono'; ctx.textAlign='center'; ctx.fillText('データ取得中...',W/2,H/2); return; }
+  if(!bars){ ctx.fillStyle='#777777'; ctx.font='12px Share Tech Mono'; ctx.textAlign='center'; ctx.fillText('データ取得中...',W/2,H/2); return; }
   const sc=getScale(tfId); if(!sc) return;
 
   // grid
-  ctx.strokeStyle='rgba(30,37,48,.7)'; ctx.lineWidth=.5;
+  ctx.strokeStyle='rgba(50,50,50,.7)'; ctx.lineWidth=.5;
   for(let i=0;i<=4;i++){
     const yy=PAD.t+(sc.ch/4)*i;
     ctx.beginPath(); ctx.moveTo(PAD.l,yy); ctx.lineTo(W-PAD.r,yy); ctx.stroke();
     const p=sc.maxP-(sc.vr/4)*i;
-    ctx.fillStyle='#4a5a6e'; ctx.font='9px Share Tech Mono'; ctx.textAlign='left';
+    ctx.fillStyle='#777777'; ctx.font='9px Share Tech Mono'; ctx.textAlign='left';
     ctx.fillText(Math.round(p).toLocaleString(),W-PAD.r+3,yy+3);
   }
 
@@ -350,7 +377,7 @@ TFS.forEach(tf=>{
   const cv=document.getElementById('cv_'+tf.id);
   if(!cv) return;
 
-  let panStart=null, pinchDist0=null, movingLine=null, moveStart=null;
+  let panStart=null, pinchDist0=null, pinchMid0=null, pinchDx0=null, pinchDy0=null, movingLine=null, moveStart=null;
 
   function getPos(e){
     const rect=cv.getBoundingClientRect();
@@ -395,6 +422,11 @@ TFS.forEach(tf=>{
       SELECTED=null;
       panStart={x:pos.x,t:xToTime(pos.x,sc),scaleT:(VIEW[tf.id]||{scaleT:1}).scaleT};
       pinchDist0=getPinchDist(e);
+      if(e.touches&&e.touches.length>=2){
+        const r=cv.getBoundingClientRect();
+        pinchDx0=Math.abs(e.touches[0].clientX-e.touches[1].clientX);
+        pinchDy0=Math.abs(e.touches[0].clientY-e.touches[1].clientY);
+      }
       renderAll(); return;
     }
 
@@ -416,10 +448,19 @@ TFS.forEach(tf=>{
     // Pinch zoom
     if(e.touches&&e.touches.length>=2){
       const dist=getPinchDist(e);
-      const mid=getMidPos(e);
       if(pinchDist0&&dist){
-        const v=VIEW[tf.id]||{offsetT:0,scaleT:1};
-        v.scaleT=Math.max(0.3,Math.min(10,v.scaleT*(dist/pinchDist0)));
+        const ratio=dist/pinchDist0;
+        const dx=Math.abs(e.touches[0].clientX-e.touches[1].clientX);
+        const dy=Math.abs(e.touches[0].clientY-e.touches[1].clientY);
+        const v=VIEW[tf.id]||{offsetT:0,scaleT:1,offsetP:0,scaleP:1};
+        // Determine dominant direction from initial pinch
+        if((pinchDx0||0) >= (pinchDy0||0)){
+          // Horizontal pinch → time zoom
+          v.scaleT=Math.max(0.3,Math.min(20,v.scaleT*ratio));
+        } else {
+          // Vertical pinch → price zoom
+          v.scaleP=Math.max(0.3,Math.min(20,(v.scaleP||1)*ratio));
+        }
         pinchDist0=dist;
         VIEW[tf.id]=v;
         renderAll();
