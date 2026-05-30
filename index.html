@@ -65,7 +65,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:h
   cursor:pointer;color-scheme:dark;}
 
 .chart-wrap{position:relative;border-bottom:2px solid #3a3a3a;overflow:hidden;}
-canvas{display:block;width:100%;touch-action:none;}
+canvas{display:block;width:100%;touch-action:pan-y;}
 .price-tag{position:absolute;right:0;font-size:10px;font-family:var(--mono);
   background:var(--gold);color:#000;padding:1px 5px;border-radius:2px 0 0 2px;
   pointer-events:none;z-index:5;transform:translateY(-50%);font-weight:bold;}
@@ -488,7 +488,7 @@ TFS.forEach(tf=>{
         renderAll(); return;
       }
       SELECTED=null;
-      panStart={x:pos.x,t:xToTime(pos.x,sc),scaleT:(VIEW[tf.id]||{scaleT:1}).scaleT};
+      panStart={x:pos.x, t:xToTime(pos.x,sc), p:yToPrice(pos.y,sc), scaleT:(VIEW[tf.id]||{scaleT:1}).scaleT};
       pinchDist0=getPinchDist(e);
       if(e.touches&&e.touches.length>=2){
         const r=cv.getBoundingClientRect();
@@ -561,12 +561,15 @@ TFS.forEach(tf=>{
       renderAll(); return;
     }
 
-    // Pan
+    // Pan (horizontal=time, vertical=price)
     if(panStart&&TOOL==='pan'){
       const curT=xToTime(pos.x,sc);
+      const curP=yToPrice(pos.y,sc);
       const dT=panStart.t-curT;
+      const dP=panStart.p-curP;
       const v=VIEW[tf.id]||{offsetT:0,scaleT:1,offsetP:0,scaleP:1};
       v.offsetT+=dT;
+      v.offsetP+=dP;
       VIEW[tf.id]=v;
       renderAll(); return;
     }
@@ -628,6 +631,9 @@ function setTool(btn){
   if(DEL_MODE){ DEL_MODE=false; document.getElementById('btnDel').classList.remove('del-mode'); }
   document.querySelectorAll('.tb-btn[data-tool]').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  // Allow vertical scroll when not drawing
+  const ta = TOOL==='pan' ? 'pan-y' : 'none';
+  document.querySelectorAll('canvas').forEach(cv=>cv.style.touchAction=ta);
   renderAll();
 }
 function toggleDelMode(){
