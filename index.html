@@ -3,370 +3,588 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="市場動向">
+<meta name="apple-mobile-web-app-title" content="N225 Chart">
 <link rel="apple-touch-icon" href="icon.jpg">
-<title>市場動向</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+<title>N225 Chart</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg:#0a0a0a; --surface:#1a1a1a; --border:#333;
-  --bull:#ff3d5a; --bear:#00c4ff; --gold:#f5c842;
-  --text:#f0f4f8; --dim:#8a9ab0; --mono:'Share Tech Mono',monospace;
+:root{
+  --bg:#080a0d;--surface:#111418;--border:#1e2530;
+  --text:#d8e4f0;--dim:#4a5a6e;--mono:'Share Tech Mono',monospace;
+  --bull:#ff3d5a;--bear:#00c4ff;--gold:#f5c842;
 }
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100vh;}
-.wrap{max-width:100%;padding:12px;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:hidden;}
 
-/* HEADER */
-header{padding:10px 0 12px;border-bottom:1px solid var(--border);margin-bottom:12px;}
-.hdr-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
-.hdr-title{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:3px;margin-bottom:4px;}
-.hdr-price{font-family:var(--mono);font-size:32px;font-weight:bold;line-height:1;}
-.hdr-change{font-family:var(--mono);font-size:13px;margin-top:4px;}
-.hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
-.upd-time{font-family:var(--mono);font-size:11px;color:var(--dim);}
-.btn-row{display:flex;gap:6px;}
-.btn{background:var(--surface);border:1px solid var(--border);color:var(--dim);
-  padding:5px 12px;border-radius:4px;font-family:var(--mono);font-size:12px;cursor:pointer;}
-select.btn{color-scheme:dark;text-align:center;text-align-last:center;}
+/* TOOLBAR */
+#toolbar{
+  position:sticky;top:0;z-index:100;
+  background:rgba(8,10,13,.95);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+  padding:8px 10px;display:flex;flex-direction:column;gap:8px;
+}
+.tb-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 
-/* SECTION */
-.sec-lbl{font-family:var(--mono);font-size:10px;color:var(--dim);
-  letter-spacing:3px;margin:16px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.tb-btn{
+  height:32px;padding:0 10px;border-radius:4px;border:1px solid var(--border);
+  background:var(--surface);color:var(--dim);font-family:var(--mono);font-size:11px;
+  cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;
+  transition:all .15s;
+}
+.tb-btn:active,.tb-btn.active{
+  background:rgba(245,200,66,.15);border-color:var(--gold);color:var(--gold);
+}
+.tb-btn.danger:active{background:rgba(255,61,90,.15);border-color:var(--bull);color:var(--bull);}
 
-/* CARD */
-.card{display:flex;align-items:center;gap:12px;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:8px;padding:14px 16px;margin-bottom:8px;}
-.card-body{flex:1;min-width:0;}
-.card-name{font-size:12px;color:var(--dim);font-family:var(--mono);margin-bottom:4px;letter-spacing:1px;}
-.card-val{font-size:20px;font-weight:700;line-height:1.2;}
-.card-sub{font-size:12px;color:var(--dim);margin-top:4px;}
-.badge{flex-shrink:0;width:60px;height:48px;border-radius:6px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:14px;font-weight:bold;font-family:var(--mono);letter-spacing:1px;}
-.bull .badge,.badge.bull{background:rgba(255,61,90,.2);color:var(--bull);border:1px solid rgba(255,61,90,.5);}
-.bear .badge,.badge.bear{background:rgba(0,196,255,.15);color:var(--bear);border:1px solid rgba(0,196,255,.4);}
-.neutral .badge,.badge.neutral{background:rgba(138,154,176,.15);color:#aaa;border:1px solid var(--border);}
+.sym-btn{height:32px;padding:0 12px;border-radius:4px;border:1px solid var(--border);
+  background:var(--surface);color:var(--dim);font-family:var(--mono);font-size:12px;cursor:pointer;}
+.sym-btn.active{background:rgba(245,200,66,.1);border-color:var(--gold);color:var(--gold);}
 
-/* card border accent */
-.card.bull{border-left:3px solid var(--bull);}
-.card.bear{border-left:3px solid var(--bear);}
-.card.neutral{border-left:3px solid var(--border);}
+.tb-sep{width:1px;height:24px;background:var(--border);flex-shrink:0;}
 
-.loading{text-align:center;padding:50px;font-family:var(--mono);font-size:13px;color:var(--dim);letter-spacing:2px;}
-.err{background:rgba(255,61,90,.1);border:1px solid rgba(255,61,90,.3);border-radius:8px;
-  padding:16px;font-family:var(--mono);font-size:12px;color:var(--bull);text-align:center;}
-footer{text-align:center;padding:16px 0 8px;font-family:var(--mono);font-size:9px;
-  color:var(--dim);letter-spacing:2px;border-top:1px solid var(--border);margin-top:8px;}
+/* COLOR PICKER ROW */
+.color-row{display:flex;align-items:center;gap:6px;}
+.color-dot{width:22px;height:22px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:border-color .15s;flex-shrink:0;}
+.color-dot.active{border-color:#fff;}
+.line-style{height:22px;padding:0 8px;border-radius:3px;border:1px solid var(--border);
+  background:var(--surface);color:var(--dim);font-family:var(--mono);font-size:10px;cursor:pointer;}
+.line-style.active{border-color:var(--gold);color:var(--gold);}
+
+/* CHARTS */
+#charts{padding:0;}
+.chart-wrap{position:relative;border-bottom:1px solid var(--border);}
+.chart-label{
+  position:absolute;top:6px;left:8px;z-index:10;
+  font-size:10px;color:var(--dim);letter-spacing:2px;pointer-events:none;
+  background:rgba(8,10,13,.7);padding:2px 6px;border-radius:2px;
+}
+.price-tag{
+  position:absolute;right:0;font-size:10px;font-family:var(--mono);
+  background:var(--gold);color:#000;padding:1px 4px;border-radius:2px 0 0 2px;
+  pointer-events:none;z-index:10;transform:translateY(-50%);
+}
+canvas{display:block;width:100%;touch-action:none;}
+
+/* DELETE PANEL */
+#delPanel{
+  display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.8);backdrop-filter:blur(6px);
+}
+#delPanel.open{display:flex;align-items:flex-end;}
+.del-sheet{
+  width:100%;background:var(--surface);border-top:1px solid var(--border);
+  border-radius:16px 16px 0 0;padding:16px;max-height:70vh;overflow-y:auto;
+}
+.del-title{font-size:11px;color:var(--dim);letter-spacing:3px;margin-bottom:12px;text-align:center;}
+.del-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:rgba(255,255,255,.04);border:1px solid var(--border);
+  border-radius:6px;margin-bottom:6px;cursor:pointer;
+}
+.del-item:active{background:rgba(255,61,90,.1);}
+.del-preview{width:40px;height:2px;border-radius:1px;flex-shrink:0;}
+.del-info{flex:1;font-size:11px;color:var(--text);}
+.del-sub{font-size:9px;color:var(--dim);margin-top:2px;}
+.del-x{color:var(--bull);font-size:16px;padding:0 4px;}
+.del-all-btn{
+  width:100%;margin-top:8px;padding:12px;border-radius:6px;
+  background:rgba(255,61,90,.15);border:1px solid rgba(255,61,90,.4);
+  color:var(--bull);font-family:var(--mono);font-size:13px;cursor:pointer;
+}
+.del-cancel{
+  width:100%;margin-top:6px;padding:10px;border-radius:6px;
+  background:var(--border);border:none;color:var(--dim);
+  font-family:var(--mono);font-size:12px;cursor:pointer;
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="hdr-top">
-      <div>
-        <div class="hdr-title">N225 FUTURES SIGNAL</div>
-        <div class="hdr-price" id="hdrPrice">---</div>
-        <div class="hdr-change" id="hdrChange">---</div>
-      </div>
-      <div class="hdr-right">
-        <span class="upd-time" id="updTime">---</span>
-        <div class="btn-row">
-          <button class="btn" onclick="loadAll()">↻</button>
-          <select class="btn" id="autoSel" onchange="setAuto(this.value)">
-            <option value="0">手動</option>
-            <option value="60">1分</option>
-            <option value="180">3分</option>
-            <option value="300">5分</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  </header>
-  <div id="app"><div class="loading">データ取得中...</div></div>
-  <footer>MARKET SIGNAL DASHBOARD<br><span style="font-size:8px;opacity:.5">※投資判断は自己責任で</span></footer>
+
+<div id="toolbar">
+  <!-- Row 1: Symbol + Tool -->
+  <div class="tb-row">
+    <button class="sym-btn active" onclick="setSym('NKD=F',this)">225先物</button>
+    <button class="sym-btn" onclick="setSym('1570.T',this)">1570</button>
+    <button class="sym-btn" onclick="setSym('1579.T',this)">1579</button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" id="btnRefresh" onclick="loadAll()">↻ 更新</button>
+    <div id="updTime" style="font-size:10px;color:var(--dim);margin-left:auto">---</div>
+  </div>
+  <!-- Row 2: Draw tools -->
+  <div class="tb-row">
+    <button class="tb-btn active" id="toolNone" onclick="setTool('none',this)">✋ 移動</button>
+    <button class="tb-btn" id="toolLine" onclick="setTool('line',this)">╱ 直線</button>
+    <button class="tb-btn" id="toolHline" onclick="setTool('hline',this)">— 水平</button>
+    <button class="tb-btn" id="toolChannel" onclick="setTool('channel',this)">⊟ チャネル</button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn danger" onclick="openDel()">🗑</button>
+  </div>
+  <!-- Row 3: Color + Style -->
+  <div class="color-row">
+    <div class="color-dot active" style="background:#ffffff" onclick="setColor('#ffffff',this)"></div>
+    <div class="color-dot" style="background:#ff3d5a" onclick="setColor('#ff3d5a',this)"></div>
+    <div class="color-dot" style="background:#00c4ff" onclick="setColor('#00c4ff',this)"></div>
+    <div class="color-dot" style="background:#f5c842" onclick="setColor('#f5c842',this)"></div>
+    <div class="color-dot" style="background:#44ff88" onclick="setColor('#44ff88',this)"></div>
+    <div class="color-dot" style="background:#ff8844" onclick="setColor('#ff8844',this)"></div>
+    <div class="color-dot" style="background:#cc88ff" onclick="setColor('#cc88ff',this)"></div>
+    <input type="color" id="colorPicker" style="width:22px;height:22px;border:none;border-radius:50%;cursor:pointer;background:none;padding:0;" onchange="setColor(this.value,null)">
+    <div class="tb-sep"></div>
+    <button class="line-style active" id="styleSolid" onclick="setStyle('solid',this)">実線</button>
+    <button class="line-style" id="styleDash" onclick="setStyle('dash',this)">点線</button>
+  </div>
+</div>
+
+<div id="charts">
+  <div class="chart-wrap" id="wrap_1d">
+    <div class="chart-label">日足</div>
+    <canvas id="cv_1d"></canvas>
+    <div class="price-tag" id="tag_1d"></div>
+  </div>
+  <div class="chart-wrap" id="wrap_1h">
+    <div class="chart-label">60分足</div>
+    <canvas id="cv_1h"></canvas>
+    <div class="price-tag" id="tag_1h"></div>
+  </div>
+  <div class="chart-wrap" id="wrap_15m">
+    <div class="chart-label">15分足</div>
+    <canvas id="cv_15m"></canvas>
+    <div class="price-tag" id="tag_15m"></div>
+  </div>
+  <div class="chart-wrap" id="wrap_5m">
+    <div class="chart-label">5分足</div>
+    <canvas id="cv_5m"></canvas>
+    <div class="price-tag" id="tag_5m"></div>
+  </div>
+</div>
+
+<!-- Delete panel -->
+<div id="delPanel" onclick="e=>e.stopPropagation()">
+  <div class="del-sheet" onclick="event.stopPropagation()">
+    <div class="del-title">ラインを削除</div>
+    <div id="delList"></div>
+    <button class="del-all-btn" onclick="deleteAll()">🗑 全ライン削除</button>
+    <button class="del-cancel" onclick="closeDel()">キャンセル</button>
+  </div>
 </div>
 
 <script>
+// ===== STATE =====
+let SYM = 'NKD=F';
+let TOOL = 'none';
+let COLOR = '#ffffff';
+let STYLE = 'solid';
+let DATA = {}; // {1d,1h,15m,5m}
+let LINES = []; // saved lines
+
+const TFS = [
+  {id:'1d', label:'日足',   interval:'1d',  range:'6mo', h:180},
+  {id:'1h', label:'60分足', interval:'1h',  range:'5d',  h:160},
+  {id:'15m',label:'15分足', interval:'15m', range:'2d',  h:150},
+  {id:'5m', label:'5分足',  interval:'5m',  range:'1d',  h:150},
+];
+
+// Lines storage key
+function linesKey(){ return 'lines_v2_'+SYM; }
+function saveLines(){ try{localStorage.setItem(linesKey(),JSON.stringify(LINES));}catch{} }
+function loadLines(){ try{LINES=JSON.parse(localStorage.getItem(linesKey())||'[]');}catch{LINES=[];} }
+
 // ===== FETCH =====
 async function fetchYahoo(sym, interval, range) {
   const url = 'https://query1.finance.yahoo.com/v8/finance/chart/'
     + encodeURIComponent(sym)
-    + '?interval=' + interval + '&range=' + range + '&includePrePost=false';
+    + '?interval='+interval+'&range='+range+'&includePrePost=false';
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 8000);
+  const t = setTimeout(()=>ctrl.abort(), 8000);
   try {
-    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), {signal: ctrl.signal});
+    const r = await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:ctrl.signal});
     clearTimeout(t);
-    if (!r.ok) return null;
+    if(!r.ok) return null;
     const j = await r.json();
-    const q = j?.chart?.result?.[0]?.indicators?.quote?.[0];
-    if (!q) return null;
-    const closes = (q.close||[]).filter(v => v!=null && !isNaN(v));
-    if (closes.length < 2) return null;
-    const highs = (q.high||[]).filter(v=>v!=null&&!isNaN(v));
-    const lows  = (q.low ||[]).filter(v=>v!=null&&!isNaN(v));
+    const res = j?.chart?.result?.[0];
+    const q = res?.indicators?.quote?.[0];
+    const ts = res?.timestamp;
+    if(!q) return null;
+    const closes=(q.close||[]).filter(v=>v!=null&&!isNaN(v));
+    if(closes.length<2) return null;
+    const highs=(q.high||[]).filter(v=>v!=null&&!isNaN(v));
+    const lows=(q.low||[]).filter(v=>v!=null&&!isNaN(v));
+    const opens=(q.open||[]).filter(v=>v!=null&&!isNaN(v));
+    // timestamps
+    const times = ts ? ts.slice(-closes.length) : [];
     return {
-      closes,
-      highs: highs.length===closes.length ? highs : closes.map(c=>c*1.002),
-      lows:  lows.length ===closes.length ? lows  : closes.map(c=>c*0.998),
+      closes, highs:highs.length===closes.length?highs:closes.map(c=>c*1.002),
+      lows:lows.length===closes.length?lows:closes.map(c=>c*0.998),
+      opens:opens.length===closes.length?opens:closes.slice(),
+      times,
     };
   } catch { clearTimeout(t); return null; }
 }
 
-// ===== MATH =====
-function sma(arr, n) {
-  if (!arr || arr.length < n) return null;
-  return arr.slice(-n).reduce((a,b)=>a+b,0)/n;
-}
-function ema(arr, n) {
-  if (!arr || arr.length < n) return null;
-  const k=2/(n+1); let e=arr[0];
-  for (let i=1;i<arr.length;i++) e=arr[i]*k+e*(1-k);
-  return e;
-}
-function rsi(arr, n=14) {
-  if (!arr || arr.length < n+1) return null;
-  const r=arr.slice(-(n+1));
-  let g=0,l=0;
-  for (let i=1;i<r.length;i++){const d=r[i]-r[i-1]; if(d>0)g+=d; else l-=d;}
-  const ag=g/n,al=l/n;
-  return al===0?100:100-100/(1+ag/al);
-}
-
-// 騰落レシオ近似（直近N日の上昇日数/下降日数）
-function toraku(closes, n) {
-  if (!closes || closes.length < n+1) return null;
-  const recent = closes.slice(-(n+1));
-  let up=0, dn=0;
-  for (let i=1;i<recent.length;i++){
-    const d=recent[i]-recent[i-1];
-    if(d>0) up++; else if(d<0) dn++;
-  }
-  return dn===0 ? 200 : (up/dn)*100;
-}
-
-// TFシグナル
-function tfSignal(tf) {
-  if (!tf || tf.closes.length < 10) return {signal:'neutral',label:'中立',sub:'データ不足'};
-  const c=tf.closes, n=c.length;
-  const s5=sma(c,Math.min(5,n)), s20=sma(c,Math.min(20,n));
-  const e12=ema(c.slice(-26),12), e26=ema(c.slice(-26),26);
-  const macd=(e12&&e26)?e12-e26:0;
-  const cur=c[n-1];
-  const bull=cur>s5&&s5>s20&&macd>0;
-  const bear=cur<s5&&s5<s20&&macd<0;
-  const slope=c.length>=5?(c[n-1]-c[n-5])/5:0;
-  if(bull) return {signal:'bull',label:'上昇',sub:'MA↑ MACD↑'};
-  if(bear) return {signal:'bear',label:'下降',sub:'MA↓ MACD↓'};
-  return {signal:'neutral',label:'中立',sub:slope>0?'やや上向き':'やや下向き'};
-}
-
-// HTML
-function fmt(v){return Math.round(v).toLocaleString();}
-function pct(v){return (v>0?'+':'')+v.toFixed(2)+'%';}
-
-function card(name, valStr, sub, signal) {
-  const cls=signal==='bull'?'bull':signal==='bear'?'bear':'neutral';
-  const lbl=signal==='bull'?'買い':signal==='bear'?'売り':'中立';
-  return '<div class="card '+cls+'">'
-    +'<div class="card-body">'
-    +'<div class="card-name">'+name+'</div>'
-    +'<div class="card-val">'+valStr+'</div>'
-    +(sub?'<div class="card-sub">'+sub+'</div>':'')
-    +'</div>'
-    +'<div class="badge '+cls+'">'+lbl+'</div>'
-    +'</div>';
-}
-
-// ===== MAIN =====
+// ===== LOAD =====
 async function loadAll() {
-  const app=document.getElementById('app');
-  app.innerHTML='<div class="loading">データ取得中...</div>';
-  try {
-    const d1=await fetchYahoo('NKD=F','1d','6mo');
-    if(!d1) throw new Error('日足データを取得できませんでした');
+  document.getElementById('updTime').textContent = '取得中...';
+  const results = await Promise.allSettled(
+    TFS.map(tf => fetchYahoo(SYM, tf.interval, tf.range))
+  );
+  TFS.forEach((tf,i)=>{ DATA[tf.id]=results[i].value||null; });
+  loadLines();
+  renderAll();
+  const now=new Date();
+  document.getElementById('updTime').textContent =
+    now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+}
 
-    const results = await Promise.allSettled([
-      fetchYahoo('NKD=F','1h','5d'),
-      fetchYahoo('NKD=F','15m','2d'),
-      fetchYahoo('NKD=F','5m','1d'),
-      fetchYahoo('^VIX','1d','5d'),
-      fetchYahoo('USDJPY=X','1d','10d'),
-      fetchYahoo('^TNX','1d','1mo'),   // 米10年
-      fetchYahoo('^FVX','1d','1mo'),   // 米5年
-      fetchYahoo('^IRX','1d','1mo'),   // 米3ヶ月
-      fetchYahoo('^JGB10Y','1d','1mo'), // 日本10年（取れない場合あり）
-    ]);
-    const [h1r,m15r,m5r,vixR,usdR,tnxR,fvxR,irxR,jgbR]=results;
+function setSym(s,btn) {
+  SYM=s;
+  document.querySelectorAll('.sym-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadAll();
+}
 
-    const tf1h  = h1r.value;
-    const tf15m = m15r.value||tf1h||d1;
-    const tf5m  = m5r.value||tf15m;
-    const vix   = vixR.value?.closes.at(-1)||null;
-    const usd   = usdR.value?.closes.at(-1)||null;
-    const usdPrev=usdR.value?.closes.at(-6)||null;
-    const tnx   = tnxR.value?.closes.at(-1)||null;
-    const tnxPrev=tnxR.value?.closes.at(-11)||null;
-    const fvx   = fvxR.value?.closes.at(-1)||null;
-    const fvxPrev=fvxR.value?.closes.at(-11)||null;
-    const jgb10 = jgbR.value?.closes.at(-1)||null;
-    const jgb10Prev=jgbR.value?.closes.at(-11)||null;
+// ===== CHART RENDER =====
+const CHART_STATE = {}; // per-tf zoom/scroll state
 
-    // 現在値
-    const cur=d1.closes.at(-1), prev=d1.closes.at(-2);
-    const chg=cur-prev, chgP=chg/prev*100;
-    document.getElementById('hdrPrice').textContent=fmt(cur);
-    document.getElementById('hdrPrice').style.color=chg>=0?'var(--bull)':'var(--bear)';
-    document.getElementById('hdrChange').textContent=(chg>=0?'+':'')+fmt(chg)+' ('+pct(chgP)+') 前日比';
-    document.getElementById('hdrChange').style.color=chg>=0?'var(--bull)':'var(--bear)';
-    const now=new Date();
-    document.getElementById('updTime').textContent=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' JST';
+function renderAll() {
+  TFS.forEach(tf => renderChart(tf));
+}
 
-    // 週足・月足
-    const wkC=[],wkH=[],wkL=[];
-    for(let i=0;i+4<d1.closes.length;i+=5){
-      wkC.push(d1.closes[i+4]);
-      wkH.push(Math.max(...d1.highs.slice(i,i+5)));
-      wkL.push(Math.min(...d1.lows.slice(i,i+5)));
-    }
-    const tf1w=wkC.length>=4?{closes:wkC,highs:wkH,lows:wkL}:null;
-    const moC=[],moH=[],moL=[];
-    for(let i=0;i+19<d1.closes.length;i+=20){
-      moC.push(d1.closes[i+19]);
-      moH.push(Math.max(...d1.highs.slice(i,i+20)));
-      moL.push(Math.min(...d1.lows.slice(i,i+20)));
-    }
-    const tf1m=moC.length>=2?{closes:moC,highs:moH,lows:moL}:null;
+function renderChart(tf) {
+  const cv = document.getElementById('cv_'+tf.id);
+  const wrap = document.getElementById('wrap_'+tf.id);
+  if(!cv||!wrap) return;
 
-    // TFシグナル
-    const sig5m=tfSignal(tf5m);
-    const sig15m=tfSignal(tf15m);
-    const sig1h=tfSignal(tf1h);
-    const sig1d=tfSignal(d1);
-    const sig1w=tfSignal(tf1w);
-    const sig1m=tfSignal(tf1m);
+  const dpr = window.devicePixelRatio||1;
+  const W = wrap.offsetWidth;
+  const H = tf.h;
+  cv.width = W*dpr; cv.height = H*dpr;
+  cv.style.height = H+'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr,dpr);
 
-    // MA乖離率
-    function devCard(maDays, label) {
-      const ma=sma(d1.closes,maDays);
-      const dv=ma?(cur-ma)/ma*100:null;
-      if(dv===null) return card(label+' 乖離率','---','データ不足','neutral');
-      let sig='neutral',sub='正常範囲';
-      if(dv>7){sig='bear';sub='上方過熱 ⚠ 追い買い注意';}
-      else if(dv>4){sig='neutral';sub='やや上方乖離 注意';}
-      else if(dv<-7){sig='bull';sub='下方過熱 ⚠ 追い売り注意';}
-      else if(dv<-4){sig='neutral';sub='やや下方乖離 注意';}
-      return card(label+' 乖離率', pct(dv), 'MA: '+fmt(ma), sig);
-    }
+  const d = DATA[tf.id];
 
-    // 騰落レシオ
-    function torakuCard(n, label) {
-      const tr=toraku(d1.closes,n);
-      if(tr===null) return card(label+' 騰落レシオ','---','データ不足','neutral');
-      let sig='neutral',sub='中立ゾーン';
-      if(tr>=130){sig='bear';sub='買われすぎ ⚠ 高値警戒';}
-      else if(tr>=110){sig='bull';sub='強気優勢';}
-      else if(tr<=70){sig='bull';sub='売られすぎ ⚠ 反発期待';}
-      else if(tr<=90){sig='bear';sub='弱気優勢';}
-      return card(label+' 騰落レシオ', tr.toFixed(1), sub, sig);
-    }
+  // background
+  ctx.fillStyle = '#080a0d';
+  ctx.fillRect(0,0,W,H);
 
-    // RSI
-    const rsiVal=rsi(d1.closes,14);
-    let rsiSig='neutral',rsiSub='中立ゾーン';
-    if(rsiVal!==null){
-      if(rsiVal>=75){rsiSig='bear';rsiSub='買われすぎ ⚠ 反転注意';}
-      else if(rsiVal>=60){rsiSig='bull';rsiSub='強気ゾーン';}
-      else if(rsiVal<=25){rsiSig='bull';rsiSub='売られすぎ ⚠ 反転注意';}
-      else if(rsiVal<=40){rsiSig='bear';rsiSub='弱気ゾーン';}
-    }
-
-    // VIX
-    let vixSig='neutral',vixSub='---';
-    if(vix){
-      if(vix>=30){vixSig='bear';vixSub='恐怖 — 急落リスク高';}
-      else if(vix>=20){vixSig='neutral';vixSub='警戒ゾーン';}
-      else if(vix<=14){vixSig='bull';vixSub='落ち着き — リスクオン';}
-      else{vixSig='neutral';vixSub='平常範囲';}
-    }
-
-    // 金利カード
-    function rateCard(name, val, prevVal, bullThresh, bearThresh, invertLogic) {
-      if(!val) return card(name,'---','取得不可','neutral');
-      const dir=prevVal?val-prevVal:0;
-      const dirStr=dir>0?'↑ 上昇中':dir<0?'↓ 低下中':'→ 横ばい';
-      let sig='neutral',sub=val.toFixed(2)+'% '+dirStr;
-      if(invertLogic){
-        // 株に逆風=金利上昇
-        if(val>=bearThresh&&dir>0){sig='bear';sub=val.toFixed(2)+'% ↑ 株に逆風';}
-        else if(val>=bearThresh){sig='neutral';sub=val.toFixed(2)+'% 高水準・横ばい';}
-        else if(dir<-0.05){sig='bull';sub=val.toFixed(2)+'% ↓ 株に追い風';}
-      } else {
-        if(dir>0.05){sig='neutral';sub=val.toFixed(2)+'% ↑ 上昇中';}
-        else if(dir<-0.05){sig='neutral';sub=val.toFixed(2)+'% ↓ 低下中';}
-      }
-      return card(name, val.toFixed(2)+'%', sub, sig);
-    }
-
-    // ドル円
-    let usdSig='neutral',usdSub='---';
-    if(usd){
-      const usdDir=usdPrev?usd-usdPrev:0;
-      if(usdDir>1){usdSig='bull';usdSub='円安進行 — 先物に追い風';}
-      else if(usdDir<-1){usdSig='bear';usdSub='円高進行 — 先物に逆風';}
-      else{usdSig='neutral';usdSub=usdDir>0?'やや円安':'やや円高';}
-    }
-
-    // ===== RENDER =====
-    let html='';
-
-    html+='<div class="sec-lbl">テクニカル — タイムフレーム別トレンド</div>';
-    html+=card('5分足',  sig5m.label,  sig5m.sub,  sig5m.signal);
-    html+=card('15分足', sig15m.label, sig15m.sub, sig15m.signal);
-    html+=card('1時間足', sig1h.label,  sig1h.sub,  sig1h.signal);
-    html+=card('日足 (1D)', sig1d.label, sig1d.sub, sig1d.signal);
-    html+=card('週足 (1W)', sig1w.label, sig1w.sub, sig1w.signal);
-    html+=card('月足 (1M)', sig1m.label, sig1m.sub, sig1m.signal);
-
-    html+='<div class="sec-lbl">テクニカル指標</div>';
-    html+=devCard(5,  '5日MA');
-    html+=devCard(13, '13日MA');
-    html+=devCard(25, '25日MA');
-    html+=torakuCard(6,  '6日');
-    html+=torakuCard(10, '10日');
-    html+=torakuCard(25, '25日');
-    html+=card('RSI (14日)', rsiVal!==null?rsiVal.toFixed(1):'---', rsiSub, rsiSig);
-
-    html+='<div class="sec-lbl">マクロ指標</div>';
-    html+=card('VIX 恐怖指数', vix?vix.toFixed(2):'---', vixSub, vixSig);
-    html+=card('ドル円', usd?usd.toFixed(2):'---', usdSub, usdSig);
-    html+=rateCard('米10年金利', tnx, tnxPrev, 4.5, 4.5, true);
-    html+=rateCard('米5年金利',  fvx, fvxPrev, 4.0, 4.0, true);
-    html+=rateCard('日本10年金利', jgb10, jgb10Prev, 1.5, 1.5, true);
-
-    app.innerHTML=html;
-
-  } catch(e) {
-    document.getElementById('app').innerHTML=
-      '<div class="err">⚠ '+e.message+'<br><br><span style="font-size:10px;opacity:.6">↻ボタンで再試行</span></div>';
+  if(!d) {
+    ctx.fillStyle='#4a5a6e';ctx.font='12px '+getComputedStyle(document.body).fontFamily;
+    ctx.textAlign='center';ctx.fillText('データ取得中...',W/2,H/2);
+    return;
   }
+
+  const pad={l:4,r:52,t:8,b:20};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+
+  // display range (zoom state)
+  const st = CHART_STATE[tf.id] || {};
+  const total = d.closes.length;
+  const viewN = st.viewN || Math.min(total, tf.id==='1d'?60:tf.id==='1h'?48:60);
+  const startIdx = st.startIdx !== undefined ? st.startIdx : Math.max(0, total-viewN);
+  const endIdx = Math.min(total, startIdx+viewN);
+  CHART_STATE[tf.id] = {viewN, startIdx, endIdx};
+
+  const closes = d.closes.slice(startIdx,endIdx);
+  const highs  = d.highs.slice(startIdx,endIdx);
+  const lows   = d.lows.slice(startIdx,endIdx);
+  const opens  = d.opens.slice(startIdx,endIdx);
+  const n = closes.length;
+  if(n<2) return;
+
+  const minV = Math.min(...lows), maxV = Math.max(...highs), vr = maxV-minV||1;
+
+  // coordinate helpers
+  function xOf(i){ return pad.l + (i+0.5)/n * cw; }
+  function yOf(v){ return pad.t + ch - (v-minV)/vr*ch; }
+
+  // price → y (for drawing lines at correct price)
+  function priceToY(price){
+    return pad.t + ch - (price-minV)/vr*ch;
+  }
+
+  // grid
+  ctx.strokeStyle='rgba(30,37,48,.8)'; ctx.lineWidth=.5;
+  for(let i=0;i<=4;i++){
+    const yy=pad.t+(ch/4)*i;
+    ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();
+    const price=maxV-(vr/4)*i;
+    ctx.fillStyle='#4a5a6e';ctx.font='9px Share Tech Mono';ctx.textAlign='left';
+    ctx.fillText(Math.round(price).toLocaleString(),W-pad.r+2,yy+3);
+  }
+
+  // candles
+  const bw = Math.max(1, cw/n*0.6);
+  for(let i=0;i<n;i++){
+    const o=opens[i],c=closes[i],h=highs[i],l=lows[i];
+    const bull=c>=o;
+    ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
+    ctx.lineWidth=1;
+    const cx=xOf(i);
+    ctx.beginPath();ctx.moveTo(cx,yOf(h));ctx.lineTo(cx,yOf(l));ctx.stroke();
+    const y1=yOf(Math.max(o,c)),y2=yOf(Math.min(o,c));
+    ctx.fillRect(cx-bw/2,y1,bw,Math.max(1,y2-y1));
+  }
+
+  // current price line
+  const cur=closes[n-1];
+  ctx.strokeStyle='rgba(245,200,66,.5)';ctx.lineWidth=.8;ctx.setLineDash([3,4]);
+  ctx.beginPath();ctx.moveTo(pad.l,yOf(cur));ctx.lineTo(W-pad.r,yOf(cur));ctx.stroke();
+  ctx.setLineDash([]);
+
+  // price tag
+  const tag=document.getElementById('tag_'+tf.id);
+  if(tag){
+    tag.textContent=Math.round(cur).toLocaleString();
+    tag.style.top=yOf(cur)+'px';
+  }
+
+  // ===== DRAW SAVED LINES =====
+  // Map price to Y, then clip to chart area
+  LINES.forEach(line => {
+    if(!priceInView(line,minV,maxV,vr)) return;
+    drawLine(ctx,line,minV,maxV,vr,pad,cw,ch,W,H,xOf,yOf,priceToY,n,startIdx,endIdx,total);
+  });
+
+  // ===== DRAW IN-PROGRESS LINE =====
+  if(DRAWING && DRAWING.tfId===tf.id) {
+    drawPreview(ctx,DRAWING,pad,cw,ch,W,H,xOf,yOf,priceToY,minV,maxV,vr);
+  }
+
+  // label
+  ctx.fillStyle='rgba(8,10,13,.75)';
+  ctx.fillRect(pad.l,pad.t,ctx.measureText(tf.label).width+16,16);
+  ctx.fillStyle='#4a5a6e';ctx.font='10px Share Tech Mono';ctx.textAlign='left';
+  ctx.fillText(tf.label,pad.l+4,pad.t+11);
 }
 
-// 自動更新
-let _timer=null;
-function setAuto(sec){
-  if(_timer){clearInterval(_timer);_timer=null;}
-  localStorage.setItem('auto_refresh',sec);
-  if(parseInt(sec)>0) _timer=setInterval(loadAll,parseInt(sec)*1000);
+function priceInView(line,minV,maxV,vr){
+  // check if any part of line is within price range (rough check)
+  const prices=[line.p1Price,line.p2Price];
+  if(line.type==='hline') return line.p1Price>=minV&&line.p1Price<=maxV;
+  return prices.some(p=>p>=minV-vr*0.5&&p<=maxV+vr*0.5);
 }
-const _s=localStorage.getItem('auto_refresh')||'0';
-document.getElementById('autoSel').value=_s;
-if(parseInt(_s)>0) _timer=setInterval(loadAll,parseInt(_s)*1000);
 
+function drawLine(ctx,line,minV,maxV,vr,pad,cw,ch,W,H,xOf,yOf,priceToY,n,startIdx,endIdx,total){
+  ctx.save();
+  ctx.strokeStyle=line.color||'#ffffff';
+  ctx.lineWidth=1.5;
+  ctx.setLineDash(line.style==='dash'?[6,4]:[]);
+
+  if(line.type==='hline'){
+    const y=priceToY(line.p1Price);
+    if(y<pad.t-2||y>pad.t+ch+2){ctx.restore();return;}
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
+  } else if(line.type==='line'||line.type==='channel'){
+    // Convert bar indices (global) to local x
+    const i1=line.p1Bar-startIdx, i2=line.p2Bar-startIdx;
+    const x1=xOf(i1), y1=priceToY(line.p1Price);
+    const x2=xOf(i2), y2=priceToY(line.p2Price);
+    // Extend line across full chart width
+    const slope=(y2-y1)/(x2-x1||1);
+    const xFull1=pad.l, yFull1=y1+slope*(pad.l-x1);
+    const xFull2=W-pad.r, yFull2=y1+slope*(W-pad.r-x1);
+    ctx.beginPath();ctx.moveTo(xFull1,yFull1);ctx.lineTo(xFull2,yFull2);ctx.stroke();
+
+    if(line.type==='channel' && line.offset){
+      ctx.globalAlpha=0.6;
+      ctx.beginPath();ctx.moveTo(xFull1,yFull1+line.offset*ch/vr*0.01);
+      // channel offset is in price units
+      const offPx=line.offset*(ch/vr);
+      ctx.moveTo(xFull1,yFull1+offPx);ctx.lineTo(xFull2,yFull2+offPx);ctx.stroke();
+      ctx.globalAlpha=1;
+      // fill between
+      ctx.globalAlpha=0.06;
+      ctx.fillStyle=line.color||'#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(xFull1,yFull1);ctx.lineTo(xFull2,yFull2);
+      ctx.lineTo(xFull2,yFull2+offPx);ctx.lineTo(xFull1,yFull1+offPx);
+      ctx.closePath();ctx.fill();
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // price label at right edge
+  const labelY = line.type==='hline'
+    ? priceToY(line.p1Price)
+    : (() => {
+        const i2=line.p2Bar-startIdx;
+        const i1=line.p1Bar-startIdx;
+        const x2=xOf(i2),y2=priceToY(line.p2Price);
+        const x1=xOf(i1),y1=priceToY(line.p1Price);
+        const slope=(y2-y1)/(x2-x1||1);
+        return y1+slope*(W-pad.r-x1);
+      })();
+  if(labelY>=pad.t&&labelY<=pad.t+ch){
+    ctx.fillStyle=line.color||'#ffffff';ctx.globalAlpha=0.8;
+    ctx.font='9px Share Tech Mono';ctx.textAlign='left';
+    ctx.fillText(Math.round(line.p1Price).toLocaleString(),W-pad.r+2,labelY+3);
+    ctx.globalAlpha=1;
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawPreview(ctx,drawing,pad,cw,ch,W,H,xOf,yOf,priceToY,minV,maxV,vr){
+  ctx.save();
+  ctx.strokeStyle=COLOR;ctx.lineWidth=1.5;ctx.globalAlpha=0.7;
+  ctx.setLineDash(STYLE==='dash'?[6,4]:[]);
+  if(drawing.type==='hline'){
+    const y=drawing.y1;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
+  } else {
+    ctx.beginPath();ctx.moveTo(drawing.x1,drawing.y1);ctx.lineTo(drawing.x2||drawing.x1,drawing.y2||drawing.y1);ctx.stroke();
+  }
+  ctx.setLineDash([]);ctx.restore();
+}
+
+// ===== TOUCH/MOUSE DRAWING =====
+let DRAWING = null;
+
+function getEventPos(e, cv) {
+  const rect=cv.getBoundingClientRect();
+  const touch=e.touches?e.touches[0]:e;
+  return {x:touch.clientX-rect.left, y:touch.clientY-rect.top};
+}
+
+function yToPrice(y,minV,maxV,vr,pad,ch){
+  return maxV - (y-pad.t)/ch*vr;
+}
+function xToBar(x,n,pad,cw,startIdx){
+  return Math.round((x-pad.l)/cw*n - 0.5) + startIdx;
+}
+
+TFS.forEach(tf=>{
+  const cv=document.getElementById('cv_'+tf.id);
+  if(!cv) return;
+
+  function onStart(e){
+    if(TOOL==='none') return;
+    e.preventDefault();
+    const pos=getEventPos(e,cv);
+    const d=DATA[tf.id];
+    if(!d) return;
+    const st=CHART_STATE[tf.id]||{};
+    const pad={l:4,r:52,t:8,b:20};
+    const W=cv.offsetWidth,H=tf.h;
+    const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+    const n=st.endIdx-st.startIdx||1;
+    const minV=Math.min(...d.lows.slice(st.startIdx,st.endIdx));
+    const maxV=Math.max(...d.highs.slice(st.startIdx,st.endIdx));
+    const vr=maxV-minV||1;
+    const price=yToPrice(pos.y,minV,maxV,vr,pad,ch);
+    const bar=xToBar(pos.x,n,pad,cw,st.startIdx||0);
+    DRAWING={type:TOOL,tfId:tf.id,x1:pos.x,y1:pos.y,x2:pos.x,y2:pos.y,
+      p1Price:price,p1Bar:bar,p2Price:price,p2Bar:bar,
+      minV,maxV,vr,pad,cw,ch,W,H,n,startIdx:st.startIdx||0};
+    renderChart(tf);
+  }
+
+  function onMove(e){
+    if(!DRAWING||DRAWING.tfId!==tf.id) return;
+    e.preventDefault();
+    const pos=getEventPos(e,cv);
+    const st=CHART_STATE[tf.id]||{};
+    const pad=DRAWING.pad, cw=DRAWING.cw, ch=DRAWING.ch;
+    const price=yToPrice(pos.y,DRAWING.minV,DRAWING.maxV,DRAWING.vr,pad,ch);
+    const bar=xToBar(pos.x,DRAWING.n,pad,cw,DRAWING.startIdx);
+    DRAWING.x2=pos.x;DRAWING.y2=pos.y;
+    DRAWING.p2Price=price;DRAWING.p2Bar=bar;
+    renderChart(tf);
+  }
+
+  function onEnd(e){
+    if(!DRAWING||DRAWING.tfId!==tf.id) return;
+    e.preventDefault();
+    // save line
+    const line={
+      id: Date.now(),
+      type: DRAWING.type,
+      color: COLOR,
+      style: STYLE,
+      p1Price: DRAWING.p1Price,
+      p1Bar:   DRAWING.p1Bar,
+      p2Price: DRAWING.p2Price,
+      p2Bar:   DRAWING.p2Bar,
+    };
+    // channel: offset = price difference between two parallel lines
+    if(DRAWING.type==='channel'){
+      line.offset = DRAWING.p1Price - DRAWING.p2Price;
+      line.p2Price = DRAWING.p1Price; // keep same start price
+    }
+    LINES.push(line);
+    saveLines();
+    DRAWING=null;
+    renderAll();
+  }
+
+  cv.addEventListener('touchstart',onStart,{passive:false});
+  cv.addEventListener('touchmove',onMove,{passive:false});
+  cv.addEventListener('touchend',onEnd,{passive:false});
+  cv.addEventListener('mousedown',onStart);
+  cv.addEventListener('mousemove',onMove);
+  cv.addEventListener('mouseup',onEnd);
+});
+
+// ===== TOOLBAR =====
+function setTool(t,btn){
+  TOOL=t;
+  document.querySelectorAll('#toolbar .tb-btn[id^=tool]').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
+function setColor(c,dot){
+  COLOR=c;
+  document.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('active'));
+  if(dot) dot.classList.add('active');
+  document.getElementById('colorPicker').value=c;
+}
+function setStyle(s,btn){
+  STYLE=s;
+  document.querySelectorAll('.line-style').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
+
+// ===== DELETE =====
+function openDel(){
+  const list=document.getElementById('delList');
+  if(LINES.length===0){
+    list.innerHTML='<div style="text-align:center;color:var(--dim);font-size:12px;padding:20px">ラインなし</div>';
+  } else {
+    list.innerHTML=LINES.map((l,i)=>`
+      <div class="del-item" onclick="deleteLine(${i})">
+        <div class="del-preview" style="background:${l.color};${l.style==='dash'?'background:repeating-linear-gradient(90deg,'+l.color+' 0,'+l.color+' 6px,transparent 6px,transparent 10px)':''}"></div>
+        <div class="del-info">
+          ${l.type==='hline'?'水平線':l.type==='channel'?'チャネル':'直線'}
+          <div class="del-sub">${Math.round(l.p1Price).toLocaleString()} 付近</div>
+        </div>
+        <div class="del-x">✕</div>
+      </div>`).join('');
+  }
+  document.getElementById('delPanel').classList.add('open');
+}
+function closeDel(){
+  document.getElementById('delPanel').classList.remove('open');
+}
+function deleteLine(i){
+  LINES.splice(i,1);
+  saveLines();
+  renderAll();
+  openDel();
+}
+function deleteAll(){
+  LINES=[];
+  saveLines();
+  renderAll();
+  closeDel();
+}
+
+// ===== RESIZE =====
+window.addEventListener('resize',()=>renderAll());
+
+// ===== INIT =====
 loadAll();
 </script>
 </body>
