@@ -22,55 +22,42 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:h
   position:sticky;top:0;z-index:100;
   background:rgba(8,10,13,.97);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--border);
-  padding:8px 10px;display:flex;flex-direction:column;gap:8px;
+  padding:8px 10px;display:flex;flex-direction:column;gap:7px;
 }
 .tb-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .tb-btn{
-  height:34px;padding:0 12px;border-radius:5px;border:1px solid var(--border);
+  height:34px;padding:0 11px;border-radius:5px;border:1px solid var(--border);
   background:var(--surface);color:var(--dim);font-family:var(--mono);font-size:12px;
-  cursor:pointer;white-space:nowrap;transition:all .15s;
+  cursor:pointer;white-space:nowrap;transition:all .15s;user-select:none;
 }
 .tb-btn.active{background:rgba(245,200,66,.15);border-color:var(--gold);color:var(--gold);}
-.tb-btn.danger{color:#ff6060;}
-.sym-btn{height:34px;padding:0 14px;border-radius:5px;border:1px solid var(--border);
+.tb-btn.del-mode{background:rgba(255,61,90,.15);border-color:var(--bull);color:var(--bull);}
+.tb-btn.disabled{opacity:.35;pointer-events:none;}
+.sym-btn{height:34px;padding:0 13px;border-radius:5px;border:1px solid var(--border);
   background:var(--surface);color:var(--dim);font-family:var(--mono);font-size:12px;cursor:pointer;}
 .sym-btn.active{background:rgba(245,200,66,.12);border-color:var(--gold);color:var(--gold);}
 .tb-sep{width:1px;height:26px;background:var(--border);flex-shrink:0;}
 .color-dot{width:24px;height:24px;border-radius:50%;cursor:pointer;
-  border:2px solid transparent;transition:border-color .15s;flex-shrink:0;}
-.color-dot.active{border-color:#fff;box-shadow:0 0 0 1px #fff;}
-.sty-btn{height:26px;padding:0 10px;border-radius:3px;border:1px solid var(--border);
+  border:2px solid transparent;flex-shrink:0;}
+.color-dot.active{border-color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.5);}
+.sty-btn{height:26px;padding:0 9px;border-radius:3px;border:1px solid var(--border);
   background:var(--surface);color:var(--dim);font-family:var(--mono);font-size:11px;cursor:pointer;}
 .sty-btn.active{border-color:var(--gold);color:var(--gold);}
 
-.chart-wrap{position:relative;border-bottom:1px solid var(--border);}
-canvas{display:block;width:100%;touch-action:none;cursor:crosshair;}
-canvas.tool-none{cursor:default;}
+.chart-wrap{position:relative;border-bottom:1px solid var(--border);overflow:hidden;}
+canvas{display:block;width:100%;touch-action:none;}
 .price-tag{position:absolute;right:0;font-size:10px;font-family:var(--mono);
   background:var(--gold);color:#000;padding:1px 5px;border-radius:2px 0 0 2px;
-  pointer-events:none;z-index:10;transform:translateY(-50%);font-weight:bold;}
+  pointer-events:none;z-index:5;transform:translateY(-50%);font-weight:bold;}
 .tf-label{position:absolute;top:6px;left:8px;font-size:10px;color:var(--dim);
-  background:rgba(8,10,13,.8);padding:2px 6px;border-radius:2px;pointer-events:none;z-index:5;letter-spacing:1px;}
+  background:rgba(8,10,13,.8);padding:2px 6px;border-radius:2px;pointer-events:none;z-index:5;}
 
-/* Delete sheet */
-#delSheet{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.75);}
-#delSheet.open{display:flex;align-items:flex-end;}
-.sheet-body{width:100%;background:#161b22;border-top:1px solid var(--border);
-  border-radius:14px 14px 0 0;padding:16px;max-height:65vh;overflow-y:auto;}
-.sheet-title{font-size:11px;color:var(--dim);letter-spacing:3px;text-align:center;margin-bottom:14px;}
-.del-item{display:flex;align-items:center;gap:10px;padding:11px 12px;
-  background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;margin-bottom:7px;cursor:pointer;}
-.del-item:active{background:rgba(255,61,90,.12);}
-.del-swatch{width:36px;height:3px;border-radius:2px;flex-shrink:0;}
-.del-info{flex:1;font-size:12px;}
-.del-sub{font-size:10px;color:var(--dim);margin-top:2px;}
-.del-x{color:var(--bull);font-size:18px;padding:0 2px;}
-.btn-all{width:100%;margin-top:10px;padding:13px;border-radius:7px;
-  background:rgba(255,61,90,.12);border:1px solid rgba(255,61,90,.35);
-  color:var(--bull);font-family:var(--mono);font-size:13px;cursor:pointer;}
-.btn-cancel{width:100%;margin-top:7px;padding:11px;border-radius:7px;
-  background:var(--surface);border:1px solid var(--border);
-  color:var(--dim);font-family:var(--mono);font-size:12px;cursor:pointer;}
+/* Toast */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:rgba(245,200,66,.15);border:1px solid var(--gold);color:var(--gold);
+  font-family:var(--mono);font-size:12px;padding:8px 16px;border-radius:20px;
+  z-index:500;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+#toast.show{opacity:1;}
 </style>
 </head>
 <body>
@@ -80,16 +67,18 @@ canvas.tool-none{cursor:default;}
     <button class="sym-btn" data-sym="1570.T" onclick="setSym(this)">1570</button>
     <button class="sym-btn" data-sym="1579.T" onclick="setSym(this)">1579</button>
     <div class="tb-sep"></div>
-    <button class="tb-btn" onclick="loadAll()">↻ 更新</button>
+    <button class="tb-btn" onclick="loadAll()">↻</button>
     <span id="updTime" style="font-size:10px;color:var(--dim);margin-left:auto">---</span>
   </div>
   <div class="tb-row">
-    <button class="tb-btn active" data-tool="none" onclick="setTool(this)">✋ 移動</button>
+    <button class="tb-btn active" data-tool="pan" onclick="setTool(this)">✋ 移動</button>
     <button class="tb-btn" data-tool="line" onclick="setTool(this)">╱ 直線</button>
-    <button class="tb-btn" data-tool="hline" onclick="setTool(this)">― 水平線</button>
+    <button class="tb-btn" data-tool="hline" onclick="setTool(this)">― 水平</button>
     <button class="tb-btn" data-tool="channel" onclick="setTool(this)">⫛ チャネル</button>
     <div class="tb-sep"></div>
-    <button class="tb-btn danger" onclick="openDel()">🗑</button>
+    <button class="tb-btn" id="btnDel" onclick="toggleDelMode()">🗑</button>
+    <button class="tb-btn disabled" id="btnUndo" onclick="undo()">↩</button>
+    <button class="tb-btn disabled" id="btnRedo" onclick="redo()">↪</button>
   </div>
   <div class="tb-row">
     <div class="color-dot active" style="background:#ffffff" data-color="#ffffff" onclick="setColor(this)"></div>
@@ -115,330 +104,426 @@ canvas.tool-none{cursor:default;}
   <div class="chart-wrap"><div class="tf-label">5分足</div><canvas id="cv_5m"></canvas><div class="price-tag" id="tag_5m"></div></div>
 </div>
 
-<div id="delSheet" onclick="closeDel()">
-  <div class="sheet-body" onclick="event.stopPropagation()">
-    <div class="sheet-title">ラインを削除</div>
-    <div id="delList"></div>
-    <button class="btn-all" onclick="deleteAll()">🗑 全ライン削除</button>
-    <button class="btn-cancel" onclick="closeDel()">キャンセル</button>
-  </div>
-</div>
+<div id="toast"></div>
 
 <script>
 // ===== CONFIG =====
-const TFS = [
-  {id:'1d',  label:'日足',   interval:'1d',  range:'6mo', h:190},
-  {id:'1h',  label:'60分足', interval:'1h',  range:'5d',  h:170},
-  {id:'15m', label:'15分足', interval:'15m', range:'2d',  h:160},
-  {id:'5m',  label:'5分足',  interval:'5m',  range:'1d',  h:160},
+const TFS=[
+  {id:'1d', label:'日足',   interval:'1d',  range:'6mo',h:185},
+  {id:'1h', label:'60分足', interval:'1h',  range:'5d', h:165},
+  {id:'15m',label:'15分足', interval:'15m', range:'2d', h:155},
+  {id:'5m', label:'5分足',  interval:'5m',  range:'1d', h:155},
 ];
-const PAD = {l:4, r:54, t:10, b:20};
+const PAD={l:4,r:54,t:10,b:18};
 
 // ===== STATE =====
-let SYM   = 'NKD=F';
-let TOOL  = 'none';
-let COLOR = '#ffffff';
-let STYLE = 'solid';
-let DATA  = {};   // tfId → {closes,highs,lows,opens,times}
-let LINES = [];   // saved lines (price+time based)
-let DRAW  = null; // in-progress drawing
+let SYM='NKD=F', TOOL='pan', COLOR='#ffffff', STYLE='solid';
+let DATA={};
+let LINES=[];
+let UNDO_STACK=[], REDO_STACK=[];
+let DRAW=null;
+let SELECTED=null; // selected line id for move
+let DEL_MODE=false;
+
+// Per-chart view state (pan/zoom)
+const VIEW={}; // tfId → {offsetT, scaleT}  offsetT=seconds shifted, scaleT=zoom factor
 
 // ===== STORAGE =====
-function storageKey(){ return 'n225_lines_v3_'+SYM; }
-function saveLines(){ try{ localStorage.setItem(storageKey(), JSON.stringify(LINES)); }catch{} }
-function loadLines(){ try{ LINES = JSON.parse(localStorage.getItem(storageKey())||'[]'); }catch{ LINES=[]; } }
+function storageKey(){ return 'n225_lines_v4_'+SYM; }
+function saveLines(){ try{ localStorage.setItem(storageKey(),JSON.stringify(LINES)); }catch{} }
+function loadLines(){ try{ LINES=JSON.parse(localStorage.getItem(storageKey())||'[]'); }catch{ LINES=[]; } }
+
+// ===== UNDO/REDO =====
+function pushUndo(){
+  UNDO_STACK.push(JSON.stringify(LINES));
+  REDO_STACK=[];
+  updateUndoButtons();
+}
+function undo(){
+  if(!UNDO_STACK.length) return;
+  REDO_STACK.push(JSON.stringify(LINES));
+  LINES=JSON.parse(UNDO_STACK.pop());
+  saveLines(); renderAll(); updateUndoButtons();
+}
+function redo(){
+  if(!REDO_STACK.length) return;
+  UNDO_STACK.push(JSON.stringify(LINES));
+  LINES=JSON.parse(REDO_STACK.pop());
+  saveLines(); renderAll(); updateUndoButtons();
+}
+function updateUndoButtons(){
+  document.getElementById('btnUndo').classList.toggle('disabled',!UNDO_STACK.length);
+  document.getElementById('btnRedo').classList.toggle('disabled',!REDO_STACK.length);
+}
 
 // ===== FETCH =====
-async function fetchYahoo(sym, interval, range){
-  const base = 'https://query1.finance.yahoo.com/v8/finance/chart/';
-  const url  = base + encodeURIComponent(sym)
-    + '?interval='+interval+'&range='+range+'&includePrePost=false';
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), 9000);
-  try {
-    const r = await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:ctrl.signal});
+async function fetchYahoo(sym,interval,range){
+  const url='https://query1.finance.yahoo.com/v8/finance/chart/'
+    +encodeURIComponent(sym)+'?interval='+interval+'&range='+range+'&includePrePost=false';
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),9000);
+  try{
+    const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:ctrl.signal});
     clearTimeout(t);
     if(!r.ok) return null;
-    const j = await r.json();
-    const res = j?.chart?.result?.[0];
-    const q   = res?.indicators?.quote?.[0];
-    const ts  = res?.timestamp || [];
-    if(!q) return null;
-    const len = ts.length;
-    // align all arrays to timestamp length
-    const closes = (q.close||[]).slice(0,len).map((v,i)=>v!=null&&!isNaN(v)?v:null);
-    const highs  = (q.high ||[]).slice(0,len).map((v,i)=>v!=null&&!isNaN(v)?v:null);
-    const lows   = (q.low  ||[]).slice(0,len).map((v,i)=>v!=null&&!isNaN(v)?v:null);
-    const opens  = (q.open ||[]).slice(0,len).map((v,i)=>v!=null&&!isNaN(v)?v:null);
-    // filter out null bars
-    const bars = [];
-    for(let i=0;i<len;i++){
-      if(closes[i]!=null && highs[i]!=null && lows[i]!=null){
-        bars.push({t:ts[i], o:opens[i]||closes[i], h:highs[i], l:lows[i], c:closes[i]});
-      }
+    const j=await r.json();
+    const res=j?.chart?.result?.[0];
+    const q=res?.indicators?.quote?.[0];
+    const ts=res?.timestamp||[];
+    if(!q||!ts.length) return null;
+    const bars=[];
+    for(let i=0;i<ts.length;i++){
+      const c=q.close?.[i],h=q.high?.[i],l=q.low?.[i],o=q.open?.[i];
+      if(c!=null&&h!=null&&l!=null) bars.push({t:ts[i],o:o||c,h,l,c});
     }
-    if(bars.length<2) return null;
-    return bars;
-  } catch { clearTimeout(t); return null; }
+    return bars.length>=2?bars:null;
+  }catch{ clearTimeout(t); return null; }
 }
 
 // ===== LOAD =====
 async function loadAll(){
   document.getElementById('updTime').textContent='取得中...';
-  const results = await Promise.allSettled(TFS.map(tf=>fetchYahoo(SYM,tf.interval,tf.range)));
-  TFS.forEach((tf,i)=>{ DATA[tf.id] = results[i].value || null; });
+  const res=await Promise.allSettled(TFS.map(tf=>fetchYahoo(SYM,tf.interval,tf.range)));
+  TFS.forEach((tf,i)=>{ DATA[tf.id]=res[i].value||null; VIEW[tf.id]={offsetT:0,scaleT:1}; });
   loadLines();
   renderAll();
   const n=new Date();
   document.getElementById('updTime').textContent=n.getHours()+':'+String(n.getMinutes()).padStart(2,'0');
 }
-
 function setSym(btn){
-  SYM = btn.dataset.sym;
+  SYM=btn.dataset.sym;
   document.querySelectorAll('.sym-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   loadAll();
 }
 
-// ===== COORDINATE HELPERS =====
-// Each chart has its own time/price scale derived from its data
+// ===== SCALE =====
 function getScale(tfId){
-  const bars = DATA[tfId];
-  if(!bars||bars.length<2) return null;
-  const cv  = document.getElementById('cv_'+tfId);
-  const tf  = TFS.find(t=>t.id===tfId);
-  const W   = cv.offsetWidth, H = tf.h;
-  const cw  = W-PAD.l-PAD.r, ch = H-PAD.t-PAD.b;
-  const n   = bars.length;
-  const minP= Math.min(...bars.map(b=>b.l));
-  const maxP= Math.max(...bars.map(b=>b.h));
-  const vr  = maxP-minP||1;
-  const minT= bars[0].t, maxT= bars[n-1].t, tr=maxT-minT||1;
-  return {bars,W,H,cw,ch,n,minP,maxP,vr,minT,maxT,tr};
-}
+  const bars=DATA[tfId]; if(!bars||bars.length<2) return null;
+  const tf=TFS.find(t=>t.id===tfId);
+  const cv=document.getElementById('cv_'+tfId);
+  const W=cv.offsetWidth||window.innerWidth, H=tf.h;
+  const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
+  const v=VIEW[tfId]||{offsetT:0,scaleT:1};
 
-function priceToY(price,sc){ return PAD.t + sc.ch - (price-sc.minP)/sc.vr*sc.ch; }
-function timeToX(ts,sc){
-  // clamp to visible range
-  const frac = (ts-sc.minT)/sc.tr;
-  return PAD.l + frac*sc.cw;
+  const rawMinT=bars[0].t, rawMaxT=bars[bars.length-1].t;
+  const rawTR=rawMaxT-rawMinT||1;
+  // Apply zoom and pan
+  const visibleTR=rawTR/v.scaleT;
+  const midT=(rawMinT+rawMaxT)/2 + v.offsetT;
+  const minT=midT-visibleTR/2, maxT=midT+visibleTR/2;
+
+  const minP=Math.min(...bars.map(b=>b.l));
+  const maxP=Math.max(...bars.map(b=>b.h));
+  const vr=maxP-minP||1;
+  return {bars,W,H,cw,ch,minP,maxP,vr,minT,maxT,tr:maxT-minT||1};
 }
-function xToTime(x,sc){ return sc.minT + (x-PAD.l)/sc.cw*sc.tr; }
-function yToPrice(y,sc){ return sc.maxP - (y-PAD.t)/sc.ch*sc.vr; }
+function priceToY(p,sc){ return PAD.t+sc.ch-(p-sc.minP)/sc.vr*sc.ch; }
+function timeToX(t,sc){ return PAD.l+(t-sc.minT)/sc.tr*sc.cw; }
+function xToTime(x,sc){ return sc.minT+(x-PAD.l)/sc.cw*sc.tr; }
+function yToPrice(y,sc){ return sc.maxP-(y-PAD.t)/sc.ch*sc.vr; }
 
 // ===== RENDER =====
 function renderAll(){ TFS.forEach(tf=>renderChart(tf.id)); }
 
 function renderChart(tfId){
-  const cv  = document.getElementById('cv_'+tfId);
-  const tf  = TFS.find(t=>t.id===tfId);
+  const cv=document.getElementById('cv_'+tfId);
+  const tf=TFS.find(t=>t.id===tfId);
   if(!cv||!tf) return;
-  const dpr = window.devicePixelRatio||1;
-  const W   = cv.offsetWidth||window.innerWidth, H = tf.h;
-  cv.width  = W*dpr; cv.height = H*dpr; cv.style.height=H+'px';
-  const ctx = cv.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.offsetWidth||window.innerWidth, H=tf.h;
+  cv.width=W*dpr; cv.height=H*dpr; cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');
   ctx.scale(dpr,dpr);
-
-  // background
   ctx.fillStyle='#080a0d'; ctx.fillRect(0,0,W,H);
 
-  const bars = DATA[tfId];
-  if(!bars){
-    ctx.fillStyle='#4a5a6e'; ctx.font='12px Share Tech Mono'; ctx.textAlign='center';
-    ctx.fillText('データ取得中...', W/2, H/2);
-    return;
-  }
-
-  const sc = getScale(tfId);
-  if(!sc) return;
+  const bars=DATA[tfId];
+  if(!bars){ ctx.fillStyle='#4a5a6e'; ctx.font='12px Share Tech Mono'; ctx.textAlign='center'; ctx.fillText('データ取得中...',W/2,H/2); return; }
+  const sc=getScale(tfId); if(!sc) return;
 
   // grid
   ctx.strokeStyle='rgba(30,37,48,.7)'; ctx.lineWidth=.5;
   for(let i=0;i<=4;i++){
     const yy=PAD.t+(sc.ch/4)*i;
     ctx.beginPath(); ctx.moveTo(PAD.l,yy); ctx.lineTo(W-PAD.r,yy); ctx.stroke();
-    const p = sc.maxP-(sc.vr/4)*i;
+    const p=sc.maxP-(sc.vr/4)*i;
     ctx.fillStyle='#4a5a6e'; ctx.font='9px Share Tech Mono'; ctx.textAlign='left';
-    ctx.fillText(Math.round(p).toLocaleString(), W-PAD.r+3, yy+3);
+    ctx.fillText(Math.round(p).toLocaleString(),W-PAD.r+3,yy+3);
   }
 
   // candles
-  const bw = Math.max(1, sc.cw/sc.n*0.55);
-  bars.forEach((bar,i)=>{
-    const cx = PAD.l + (i+0.5)/sc.n*sc.cw;
-    const bull = bar.c >= bar.o;
-    ctx.strokeStyle = ctx.fillStyle = bull?'#ff3d5a':'#00c4ff';
-    ctx.lineWidth=1;
+  const bw=Math.max(1,sc.cw/bars.length*0.55);
+  bars.forEach(bar=>{
+    const cx=timeToX(bar.t,sc);
+    if(cx<PAD.l-bw||cx>W-PAD.r+bw) return;
+    const bull=bar.c>=bar.o;
+    ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
+    ctx.lineWidth=.8;
     ctx.beginPath(); ctx.moveTo(cx,priceToY(bar.h,sc)); ctx.lineTo(cx,priceToY(bar.l,sc)); ctx.stroke();
     const y1=priceToY(Math.max(bar.o,bar.c),sc), y2=priceToY(Math.min(bar.o,bar.c),sc);
-    ctx.fillRect(cx-bw/2, y1, bw, Math.max(1,y2-y1));
+    ctx.fillRect(cx-bw/2,y1,bw,Math.max(1,y2-y1));
   });
 
-  // current price line
-  const cur = bars.at(-1).c;
-  ctx.strokeStyle='rgba(245,200,66,.45)'; ctx.lineWidth=.8; ctx.setLineDash([3,4]);
+  // current price
+  const cur=bars.at(-1).c;
+  ctx.strokeStyle='rgba(245,200,66,.4)'; ctx.lineWidth=.7; ctx.setLineDash([3,4]);
   ctx.beginPath(); ctx.moveTo(PAD.l,priceToY(cur,sc)); ctx.lineTo(W-PAD.r,priceToY(cur,sc)); ctx.stroke();
   ctx.setLineDash([]);
   const tag=document.getElementById('tag_'+tfId);
   if(tag){ tag.textContent=Math.round(cur).toLocaleString(); tag.style.top=priceToY(cur,sc)+'px'; }
 
-  // ===== SAVED LINES =====
-  LINES.forEach(line=>drawLineFull(ctx,line,sc,W,H,false));
+  // saved lines
+  LINES.forEach(line=>{
+    const isSel=SELECTED===line.id;
+    drawLine(ctx,line,sc,W,H,false,isSel);
+  });
+  // in-progress
+  if(DRAW&&DRAW.tfId===tfId) drawLine(ctx,DRAW,sc,W,H,true,false);
 
-  // ===== IN-PROGRESS =====
-  if(DRAW && DRAW.tfId===tfId) drawLineFull(ctx,DRAW,sc,W,H,true);
+  // DEL MODE overlay hint
+  if(DEL_MODE){
+    ctx.fillStyle='rgba(255,61,90,.06)';
+    ctx.fillRect(0,0,W,H);
+  }
 }
 
-function drawLineFull(ctx, line, sc, W, H, preview){
+function drawLine(ctx,line,sc,W,H,preview,selected){
   ctx.save();
-  ctx.strokeStyle = line.color||'#ffffff';
-  ctx.lineWidth   = preview ? 1.2 : 1.5;
-  ctx.globalAlpha = preview ? 0.65 : 1;
-  ctx.setLineDash(line.style==='dash'?[6,4]:[]);
+  ctx.strokeStyle=line.color||'#fff';
+  ctx.lineWidth=selected?1.5:0.8;
+  ctx.globalAlpha=preview?0.6:1;
+  if(selected){ ctx.shadowColor=line.color; ctx.shadowBlur=6; }
+  ctx.setLineDash(line.style==='dash'?[5,4]:[]);
 
   if(line.type==='hline'){
-    const y = priceToY(line.p1Price, sc);
+    const y=priceToY(line.p1Price,sc);
     if(y<PAD.t-4||y>PAD.t+sc.ch+4){ ctx.restore(); return; }
     ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(W-PAD.r,y); ctx.stroke();
-    // label
-    ctx.font='9px Share Tech Mono'; ctx.fillStyle=line.color; ctx.textAlign='left';
-    ctx.fillText(Math.round(line.p1Price).toLocaleString(), W-PAD.r+3, y+3);
+    ctx.font='9px Share Tech Mono'; ctx.fillStyle=line.color; ctx.globalAlpha=.8; ctx.textAlign='left';
+    ctx.fillText(Math.round(line.p1Price).toLocaleString(),W-PAD.r+3,y+3);
 
   } else if(line.type==='line'){
-    // finite line: from p1(time,price) to p2(time,price)
-    const x1=timeToX(line.p1Time,sc), y1=priceToY(line.p1Price,sc);
-    const x2=timeToX(line.p2Time,sc), y2=priceToY(line.p2Price,sc);
+    const x1=timeToX(line.p1Time,sc),y1=priceToY(line.p1Price,sc);
+    const x2=timeToX(line.p2Time,sc),y2=priceToY(line.p2Price,sc);
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
 
   } else if(line.type==='channel'){
-    if(line.phase===1||preview){
-      // phase1: just draw first line
-      const x1=timeToX(line.p1Time,sc), y1=priceToY(line.p1Price,sc);
-      const x2=timeToX(line.p2Time,sc), y2=priceToY(line.p2Price,sc);
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    }
-    if(line.phase===2){
-      // both lines drawn
-      const x1=timeToX(line.p1Time,sc), y1=priceToY(line.p1Price,sc);
-      const x2=timeToX(line.p2Time,sc), y2=priceToY(line.p2Price,sc);
-      const offY= (line.p3Price-line.p1Price)*sc.ch/sc.vr; // pixel offset
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x1,y1-offY); ctx.lineTo(x2,y2-offY); ctx.stroke();
-      // fill
-      ctx.globalAlpha=0.07;
-      ctx.fillStyle=line.color;
-      ctx.beginPath();
-      ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
-      ctx.lineTo(x2,y2-offY); ctx.lineTo(x1,y1-offY);
-      ctx.closePath(); ctx.fill();
-    }
+    const x1=timeToX(line.p1Time,sc),y1=priceToY(line.p1Price,sc);
+    const x2=timeToX(line.p2Time,sc),y2=priceToY(line.p2Price,sc);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    if(line.phase===1){ ctx.restore(); return; } // phase1: only first line
+    const offPx=(line.p3Price-line.p1Price)*sc.ch/sc.vr;
+    ctx.beginPath(); ctx.moveTo(x1,y1-offPx); ctx.lineTo(x2,y2-offPx); ctx.stroke();
+    ctx.globalAlpha=0.07; ctx.fillStyle=line.color;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x2,y2-offPx); ctx.lineTo(x1,y1-offPx); ctx.closePath(); ctx.fill();
   }
-
   ctx.setLineDash([]); ctx.restore();
 }
 
-// ===== TOUCH HANDLING =====
-// Channel drawing has 2 phases:
-// Phase 1: draw first line (p1→p2), tap end to confirm
-// Phase 2: move finger to set parallel distance, tap to finish
+// ===== HIT TEST =====
+function hitTest(line,x,y,sc,thresh=14){
+  if(line.type==='hline'){
+    const ly=priceToY(line.p1Price,sc);
+    return Math.abs(y-ly)<thresh;
+  } else if(line.type==='line'||line.type==='channel'){
+    const x1=timeToX(line.p1Time,sc),y1=priceToY(line.p1Price,sc);
+    const x2=timeToX(line.p2Time,sc),y2=priceToY(line.p2Price,sc);
+    // distance from point to segment
+    const dx=x2-x1,dy=y2-y1,len2=dx*dx+dy*dy;
+    if(len2===0) return Math.hypot(x-x1,y-y1)<thresh;
+    const t=Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/len2));
+    const px=x1+t*dx,py=y1+t*dy;
+    if(Math.hypot(x-px,y-py)<thresh) return true;
+    // also check parallel line for channel
+    if(line.type==='channel'&&line.phase===2){
+      const offPx=(line.p3Price-line.p1Price)*sc.ch/sc.vr;
+      const py2=y1-offPx+t*dy;
+      if(Math.hypot(x-(x1+t*dx),y-py2)<thresh) return true;
+    }
+    return false;
+  }
+  return false;
+}
 
+// ===== TOUCH HANDLING =====
 TFS.forEach(tf=>{
-  const cv = document.getElementById('cv_'+tf.id);
+  const cv=document.getElementById('cv_'+tf.id);
   if(!cv) return;
+
+  let panStart=null, pinchDist0=null, movingLine=null, moveStart=null;
 
   function getPos(e){
     const rect=cv.getBoundingClientRect();
     const src=e.touches?e.touches[0]:e;
-    return {x:src.clientX-rect.left, y:src.clientY-rect.top};
+    return {x:src.clientX-rect.left,y:src.clientY-rect.top};
+  }
+  function getPinchDist(e){
+    if(!e.touches||e.touches.length<2) return null;
+    const r=cv.getBoundingClientRect();
+    const t1=e.touches[0],t2=e.touches[1];
+    return Math.hypot(t1.clientX-t2.clientX,t1.clientY-t2.clientY);
+  }
+  function getMidPos(e){
+    if(!e.touches||e.touches.length<2) return null;
+    const r=cv.getBoundingClientRect();
+    return {x:(e.touches[0].clientX+e.touches[1].clientX)/2-r.left,
+            y:(e.touches[0].clientY+e.touches[1].clientY)/2-r.top};
   }
 
   function onStart(e){
-    if(TOOL==='none') return;
     e.preventDefault();
     const pos=getPos(e);
-    const sc=getScale(tf.id);
-    if(!sc) return;
-    const t=xToTime(pos.x,sc), p=yToPrice(pos.y,sc);
+    const sc=getScale(tf.id); if(!sc) return;
 
-    if(TOOL==='channel' && DRAW && DRAW.type==='channel' && DRAW.phase===1){
-      // Channel phase 2: set p3 (parallel offset)
-      DRAW.phase=2;
-      DRAW.p3Price=p;
-      DRAW.p3Time=t;
-      DRAW.tfId=tf.id;
+    // DEL MODE: tap to delete
+    if(DEL_MODE){
+      const hit=LINES.slice().reverse().find(l=>hitTest(l,pos.x,pos.y,sc));
+      if(hit){ pushUndo(); LINES=LINES.filter(l=>l.id!==hit.id); saveLines(); renderAll(); toast('ライン削除'); }
+      return;
+    }
+
+    // PAN MODE
+    if(TOOL==='pan'){
+      // Check line hit for selection/move
+      const hit=LINES.slice().reverse().find(l=>hitTest(l,pos.x,pos.y,sc));
+      if(hit){
+        SELECTED=hit.id;
+        movingLine={...hit};
+        moveStart={x:pos.x,y:pos.y,t:xToTime(pos.x,sc),p:yToPrice(pos.y,sc)};
+        renderAll(); return;
+      }
+      SELECTED=null;
+      panStart={x:pos.x,t:xToTime(pos.x,sc),scaleT:(VIEW[tf.id]||{scaleT:1}).scaleT};
+      pinchDist0=getPinchDist(e);
+      renderAll(); return;
+    }
+
+    // DRAW TOOLS
+    const t=xToTime(pos.x,sc), p=yToPrice(pos.y,sc);
+    if(TOOL==='channel'&&DRAW&&DRAW.type==='channel'&&DRAW.phase===1){
+      DRAW.phase=2; DRAW.p3Price=p; DRAW.p3Time=t;
     } else {
-      DRAW={type:TOOL, tfId:tf.id, color:COLOR, style:STYLE,
-        p1Time:t, p1Price:p, p2Time:t, p2Price:p,
-        phase:TOOL==='channel'?1:undefined};
+      DRAW={type:TOOL,tfId:tf.id,color:COLOR,style:STYLE,
+        p1Time:t,p1Price:p,p2Time:t,p2Price:p,phase:TOOL==='channel'?1:undefined};
     }
     renderAll();
   }
 
   function onMove(e){
-    if(!DRAW) return;
     e.preventDefault();
-    const pos=getPos(e);
-    const sc=getScale(tf.id);
-    if(!sc) return;
-    const t=xToTime(pos.x,sc), p=yToPrice(pos.y,sc);
+    const sc=getScale(tf.id); if(!sc) return;
 
-    if(DRAW.type==='channel' && DRAW.phase===2){
-      DRAW.p3Price=p; DRAW.p3Time=t;
-    } else {
-      DRAW.p2Time=t; DRAW.p2Price=p;
+    // Pinch zoom
+    if(e.touches&&e.touches.length>=2){
+      const dist=getPinchDist(e);
+      const mid=getMidPos(e);
+      if(pinchDist0&&dist){
+        const v=VIEW[tf.id]||{offsetT:0,scaleT:1};
+        v.scaleT=Math.max(0.3,Math.min(10,v.scaleT*(dist/pinchDist0)));
+        pinchDist0=dist;
+        VIEW[tf.id]=v;
+        renderAll();
+      }
+      return;
     }
+
+    const pos=getPos(e);
+
+    // Move selected line
+    if(movingLine&&moveStart){
+      const curT=xToTime(pos.x,sc), curP=yToPrice(pos.y,sc);
+      const dT=curT-moveStart.t, dP=curP-moveStart.p;
+      const idx=LINES.findIndex(l=>l.id===movingLine.id);
+      if(idx>=0){
+        const l=LINES[idx];
+        if(l.type==='hline'){ l.p1Price=movingLine.p1Price+dP; }
+        else{
+          l.p1Time=movingLine.p1Time+dT; l.p1Price=movingLine.p1Price+dP;
+          l.p2Time=movingLine.p2Time+dT; l.p2Price=movingLine.p2Price+dP;
+          if(l.type==='channel'&&l.phase===2) l.p3Price=movingLine.p3Price+dP;
+        }
+      }
+      renderAll(); return;
+    }
+
+    // Pan
+    if(panStart&&TOOL==='pan'){
+      const curT=xToTime(pos.x,sc);
+      const dT=panStart.t-curT;
+      const v=VIEW[tf.id]||{offsetT:0,scaleT:1};
+      v.offsetT+=dT;
+      VIEW[tf.id]=v;
+      renderAll(); return;
+    }
+
+    // Drawing
+    if(!DRAW) return;
+    const t=xToTime(pos.x,sc), p=yToPrice(pos.y,sc);
+    if(DRAW.type==='channel'&&DRAW.phase===2){ DRAW.p3Price=p; }
+    else{ DRAW.p2Time=t; DRAW.p2Price=p; }
     renderAll();
   }
 
   function onEnd(e){
-    if(!DRAW) return;
     e.preventDefault();
+    pinchDist0=null;
 
-    if(DRAW.type==='channel' && DRAW.phase===1){
-      // wait for second touch to set parallel line — do nothing on end of phase1
-      return;
-    }
-    if(DRAW.type==='channel' && DRAW.phase===2){
-      // finalize channel
-      const line={...DRAW, id:Date.now()};
-      LINES.push(line);
+    // Finish line move
+    if(movingLine){
+      pushUndo();
+      // lines already mutated in onMove, just save
+      // restore original then apply final delta
+      const pos=getPos(e.changedTouches?{touches:e.changedTouches}:e);
       saveLines();
-      DRAW=null;
-      renderAll();
-      return;
+      movingLine=null; moveStart=null;
+      renderAll(); return;
     }
+    panStart=null;
 
-    // line or hline
-    const dist=Math.hypot(DRAW.p2Time-DRAW.p1Time, DRAW.p2Price-DRAW.p1Price);
-    if(Math.abs(DRAW.p2Price-DRAW.p1Price)<1 && DRAW.type!=='hline') {
-      // too small - treat as tap, cancel
-      DRAW=null; renderAll(); return;
+    if(!DRAW) return;
+    if(DRAW.type==='channel'&&(DRAW.phase===1)) return; // wait for phase2 tap
+    if(DRAW.type==='channel'&&DRAW.phase===2){
+      pushUndo();
+      LINES.push({...DRAW,id:Date.now()});
+      saveLines(); DRAW=null; renderAll(); return;
     }
-    const line={...DRAW, id:Date.now()};
-    LINES.push(line);
-    saveLines();
-    DRAW=null;
-    renderAll();
+    // line/hline: require minimum drag
+    const sc=getScale(tf.id);
+    if(sc&&DRAW.type!=='hline'){
+      const dx=timeToX(DRAW.p2Time,sc)-timeToX(DRAW.p1Time,sc);
+      const dy=priceToY(DRAW.p2Price,sc)-priceToY(DRAW.p1Price,sc);
+      if(Math.hypot(dx,dy)<8){ DRAW=null; renderAll(); return; }
+    }
+    pushUndo();
+    LINES.push({...DRAW,id:Date.now()});
+    saveLines(); DRAW=null; renderAll();
   }
 
-  cv.addEventListener('touchstart', onStart, {passive:false});
-  cv.addEventListener('touchmove',  onMove,  {passive:false});
-  cv.addEventListener('touchend',   onEnd,   {passive:false});
-  cv.addEventListener('mousedown',  onStart);
-  cv.addEventListener('mousemove',  e=>{if(e.buttons)onMove(e);});
-  cv.addEventListener('mouseup',    onEnd);
+  cv.addEventListener('touchstart',onStart,{passive:false});
+  cv.addEventListener('touchmove', onMove, {passive:false});
+  cv.addEventListener('touchend',  onEnd,  {passive:false});
+  cv.addEventListener('mousedown', onStart);
+  cv.addEventListener('mousemove', e=>{ if(e.buttons) onMove(e); });
+  cv.addEventListener('mouseup',   onEnd);
 });
 
 // ===== TOOLBAR =====
 function setTool(btn){
-  TOOL=btn.dataset.tool;
-  DRAW=null;
+  TOOL=btn.dataset.tool; DRAW=null; SELECTED=null;
+  if(DEL_MODE){ DEL_MODE=false; document.getElementById('btnDel').classList.remove('del-mode'); }
   document.querySelectorAll('.tb-btn[data-tool]').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  // cursor
-  document.querySelectorAll('canvas').forEach(cv=>{
-    cv.style.cursor = TOOL==='none'?'default':'crosshair';
-  });
+  renderAll();
+}
+function toggleDelMode(){
+  DEL_MODE=!DEL_MODE;
+  DRAW=null; SELECTED=null;
+  const btn=document.getElementById('btnDel');
+  btn.classList.toggle('del-mode',DEL_MODE);
+  if(DEL_MODE){
+    document.querySelectorAll('.tb-btn[data-tool]').forEach(b=>b.classList.remove('active'));
+    toast('削除モード — 消したいラインをタップ');
+  }
   renderAll();
 }
 function setColor(dot){
@@ -457,33 +542,16 @@ function setStyle(btn){
   btn.classList.add('active');
 }
 
-// ===== DELETE =====
-function openDel(){
-  const list=document.getElementById('delList');
-  if(!LINES.length){
-    list.innerHTML='<div style="text-align:center;color:var(--dim);padding:20px;font-size:12px">ラインがありません</div>';
-  } else {
-    const typeLabel={line:'直線',hline:'水平線',channel:'チャネル'};
-    list.innerHTML=LINES.map((l,i)=>{
-      const dashStyle = l.style==='dash'
-        ? `background:repeating-linear-gradient(90deg,${l.color} 0,${l.color} 6px,transparent 6px,transparent 10px)`
-        : `background:${l.color}`;
-      return `<div class="del-item" onclick="deleteLine(${i})">
-        <div class="del-swatch" style="${dashStyle}"></div>
-        <div class="del-info">${typeLabel[l.type]||l.type}
-          <div class="del-sub">${Math.round(l.p1Price).toLocaleString()} 付近</div>
-        </div>
-        <div class="del-x">✕</div>
-      </div>`;
-    }).join('');
-  }
-  document.getElementById('delSheet').classList.add('open');
+// ===== TOAST =====
+let _toastTimer=null;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  if(_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>el.classList.remove('show'),2000);
 }
-function closeDel(){ document.getElementById('delSheet').classList.remove('open'); }
-function deleteLine(i){ LINES.splice(i,1); saveLines(); renderAll(); openDel(); }
-function deleteAll(){ LINES=[]; saveLines(); renderAll(); closeDel(); }
 
-window.addEventListener('resize',()=>renderAll());
+window.addEventListener('resize',renderAll);
 loadAll();
 </script>
 </body>
