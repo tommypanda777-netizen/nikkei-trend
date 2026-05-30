@@ -16,7 +16,7 @@
   --bull:#ff3d5a;--bear:#00c4ff;--gold:#f5c842;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:hidden;overflow-y:auto;}
 
 #toolbar{
   position:sticky;top:0;z-index:100;
@@ -43,6 +43,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:h
 .sty-btn{height:26px;padding:0 9px;border-radius:3px;border:1px solid var(--border);
   background:var(--surface);color:var(--dim);font-family:var(--mono);font-size:11px;cursor:pointer;}
 .sty-btn.active{border-color:var(--gold);color:var(--gold);}
+
+/* Tool icons larger, same color as sym select */
+.tool-icon{font-size:18px !important;padding:0 10px !important;color:#e8e8e8 !important;}
+.tb-btn[data-tool].active{color:var(--gold) !important;}
+
+/* Refresh/Undo/Redo icons */
+.icon-btn{font-size:21px;padding:0 10px;color:#e8e8e8;}
+.icon-btn.disabled{opacity:.3;pointer-events:none;}
+
+/* Palette slots */
+.pal-slot{width:26px;height:26px;border-radius:50%;cursor:pointer;flex-shrink:0;
+  border:2px solid transparent;position:relative;transition:border-color .15s;}
+.pal-slot.active{border-color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.5);}
+.pal-slot::after{content:'✎';position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-size:10px;color:rgba(255,255,255,.5);opacity:0;}
+.pal-slot:active::after{opacity:1;}
 .tb-sel{height:34px;padding:0 10px;border-radius:5px;border:1px solid var(--border);
   background:var(--surface);color:#eef4ff;font-family:var(--mono);font-size:12px;
   cursor:pointer;color-scheme:dark;}
@@ -52,7 +68,7 @@ canvas{display:block;width:100%;touch-action:none;}
 .price-tag{position:absolute;right:0;font-size:10px;font-family:var(--mono);
   background:var(--gold);color:#000;padding:1px 5px;border-radius:2px 0 0 2px;
   pointer-events:none;z-index:5;transform:translateY(-50%);font-weight:bold;}
-.tf-label{position:absolute;top:6px;left:8px;font-size:10px;color:var(--dim);
+.tf-label{position:absolute;top:6px;left:8px;font-size:10px;color:#e8e8e8;
   background:rgba(8,10,13,.8);padding:2px 6px;border-radius:2px;pointer-events:none;z-index:5;}
 
 /* Toast */
@@ -333,6 +349,16 @@ function drawLine(ctx,line,sc,W,H,preview,selected){
     const x1=timeToX(line.p1Time,sc),y1=priceToY(line.p1Price,sc);
     const x2=timeToX(line.p2Time,sc),y2=priceToY(line.p2Price,sc);
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    // endpoint handles when selected
+    if(selected){
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      [x1,x2].forEach((ex,i)=>{
+        const ey=i===0?y1:y2;
+        ctx.beginPath(); ctx.arc(ex,ey,6,0,Math.PI*2);
+        ctx.fillStyle=line.color; ctx.fill();
+        ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.stroke();
+      });
+    }
 
   } else if(line.type==='channel'){
     const x1=timeToX(line.p1Time,sc),y1=priceToY(line.p1Price,sc);
@@ -411,7 +437,19 @@ TFS.forEach(tf=>{
 
     // PAN MODE
     if(TOOL==='pan'){
-      // Check line hit for selection/move
+      // Check endpoint hit first (for angle editing)
+      let epHit=null, epLine=null;
+      for(let i=LINES.length-1;i>=0;i--){
+        const ep=findEndpointHit(LINES[i],pos.x,pos.y,sc);
+        if(ep){ epHit=ep; epLine=LINES[i]; break; }
+      }
+      if(epHit&&epLine){
+        SELECTED=epLine.id;
+        movingLine={...epLine, _ep:epHit};
+        moveStart={x:pos.x,y:pos.y,t:xToTime(pos.x,sc),p:yToPrice(pos.y,sc)};
+        renderAll(); return;
+      }
+      // Check full line hit for move
       const hit=LINES.slice().reverse().find(l=>hitTest(l,pos.x,pos.y,sc));
       if(hit){
         SELECTED=hit.id;
@@ -470,15 +508,21 @@ TFS.forEach(tf=>{
 
     const pos=getPos(e);
 
-    // Move selected line
+    // Move selected line (or endpoint)
     if(movingLine&&moveStart){
       const curT=xToTime(pos.x,sc), curP=yToPrice(pos.y,sc);
       const dT=curT-moveStart.t, dP=curP-moveStart.p;
       const idx=LINES.findIndex(l=>l.id===movingLine.id);
       if(idx>=0){
         const l=LINES[idx];
-        if(l.type==='hline'){ l.p1Price=movingLine.p1Price+dP; }
-        else{
+        const ep=movingLine._ep;
+        if(ep){
+          // Endpoint drag: only move one end
+          if(ep==='p1'){ l.p1Time=movingLine.p1Time+dT; l.p1Price=movingLine.p1Price+dP; }
+          else          { l.p2Time=movingLine.p2Time+dT; l.p2Price=movingLine.p2Price+dP; }
+        } else if(l.type==='hline'){
+          l.p1Price=movingLine.p1Price+dP;
+        } else {
           l.p1Time=movingLine.p1Time+dT; l.p1Price=movingLine.p1Price+dP;
           l.p2Time=movingLine.p2Time+dT; l.p2Price=movingLine.p2Price+dP;
           if(l.type==='channel'&&l.phase===2) l.p3Price=movingLine.p3Price+dP;
@@ -567,15 +611,60 @@ function toggleDelMode(){
   }
   renderAll();
 }
-function setColor(dot){
-  COLOR=dot.dataset.color;
-  document.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('active'));
-  dot.classList.add('active');
-  document.getElementById('colorPicker').value=COLOR;
+// ===== PALETTE =====
+const PAL_KEY='n225_palette';
+const PAL_DEFAULTS=['#ffffff','#ff3d5a','#00c4ff','#f5c842','#44ff88'];
+let PALETTE=[];
+let PAL_ACTIVE=0;
+let _palEditIdx=null;
+
+function loadPalette(){
+  try{ PALETTE=JSON.parse(localStorage.getItem(PAL_KEY)||'null')||[...PAL_DEFAULTS]; }
+  catch{ PALETTE=[...PAL_DEFAULTS]; }
+  renderPalette();
+  COLOR=PALETTE[0];
 }
-function setColorHex(c){
-  COLOR=c;
-  document.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('active'));
+function savePalette(){ try{ localStorage.setItem(PAL_KEY,JSON.stringify(PALETTE)); }catch{} }
+function renderPalette(){
+  PALETTE.forEach((c,i)=>{
+    const el=document.getElementById('pal'+i);
+    if(el){ el.style.background=c; el.className='pal-slot'+(i===PAL_ACTIVE?' active':''); }
+  });
+}
+function palClick(i){
+  PAL_ACTIVE=i; COLOR=PALETTE[i]; renderPalette();
+}
+function palEdit(e,i){
+  e.preventDefault();
+  _palEditIdx=i;
+  const picker=document.getElementById('palPicker');
+  picker.value=PALETTE[i];
+  picker.oninput=picker.onchange=function(){
+    PALETTE[_palEditIdx]=this.value;
+    savePalette(); renderPalette();
+    if(_palEditIdx===PAL_ACTIVE) COLOR=this.value;
+  };
+  picker.click();
+}
+// Long-press for palette edit on touch
+TFS.forEach(()=>{}); // placeholder, long press attached after DOM ready
+document.querySelectorAll('.pal-slot').forEach((el,i)=>{
+  let lt=null;
+  el.addEventListener('touchstart',()=>{ lt=setTimeout(()=>palEdit({preventDefault:()=>{}},i),500); },{passive:true});
+  el.addEventListener('touchend',()=>{ if(lt){clearTimeout(lt);lt=null;} },{passive:true});
+});
+
+function setColorHex(c){ COLOR=c; } // fallback
+
+// ===== LINE ENDPOINT DRAG (angle edit) =====
+// In pan mode, if touch is near an endpoint → drag that endpoint
+function findEndpointHit(line,x,y,sc,thresh=18){
+  if(line.type==='hline') return null;
+  const x1=timeToX(line.p1Time,sc), y1=priceToY(line.p1Price,sc);
+  const x2=timeToX(line.p2Time,sc), y2=priceToY(line.p2Price,sc);
+  if(Math.hypot(x-x1,y-y1)<thresh) return 'p1';
+  if(Math.hypot(x-x2,y-y2)<thresh) return 'p2';
+  return null;
 }
 function setStyle(btn){
   STYLE=btn.dataset.sty;
@@ -593,6 +682,7 @@ function toast(msg){
 }
 
 window.addEventListener('resize',renderAll);
+loadPalette();
 loadAll();
 </script>
 </body>
