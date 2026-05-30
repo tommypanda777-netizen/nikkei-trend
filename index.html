@@ -34,7 +34,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow:hid
 
 /* CHARTS */
 #charts{flex:1;overflow-y:auto;overflow-x:hidden;}
-.chart-wrap{position:relative;border-bottom:2px solid #3a3a3a;}
+.chart-wrap{position:relative;border-bottom:2px solid #3a3a3a;overflow:hidden;}
 .chart-label{position:absolute;top:5px;left:8px;font-size:10px;color:#aaa;background:rgba(0,0,0,.7);padding:2px 6px;border-radius:2px;z-index:5;display:flex;align-items:center;gap:4px;}
 .lock-btn{background:none;border:none;cursor:pointer;padding:2px;opacity:.5;line-height:1;pointer-events:all;}
 .lock-btn.locked{opacity:1;}
@@ -80,8 +80,6 @@ canvas{display:block;width:100%;touch-action:none;}
     <button class="tb-btn" onclick="openSettings()">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="7" cy="7" r="2"/><circle cx="7" cy="7" r="4.5"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.8 2.8l1 1M10.2 10.2l1 1M2.8 11.2l1-1M10.2 3.8l1-1"/></svg>
     </button>
-    <button class="tb-btn disabled" id="btnUndo" onclick="undo()" style="margin-left:auto;font-size:16px">↩</button>
-    <button class="tb-btn disabled" id="btnRedo" onclick="redo()" style="font-size:16px">↪</button>
   </div>
   <!-- Row 2 -->
   <div class="tb-row">
@@ -96,6 +94,8 @@ canvas{display:block;width:100%;touch-action:none;}
     <select class="tb-sel" id="autoSel" onchange="setAuto(this.value)" style="width:72px"></select>
     <button class="tb-btn" onclick="loadAll()" style="font-size:16px">↻</button>
     <span id="updTime" style="font-size:15px;color:#ccc;min-width:46px">---</span>
+    <button class="tb-btn disabled" id="btnUndo" onclick="undo()" style="margin-left:auto;font-size:16px">↩</button>
+    <button class="tb-btn disabled" id="btnRedo" onclick="redo()" style="font-size:16px">↪</button>
   </div>
 </div>
 
@@ -303,7 +303,16 @@ function renderChart(tfId){
   // Current price tag only
   const cur=bars.at(-1).c;
   const tag=document.getElementById('tag_'+tfId);
-  if(tag){tag.textContent=Math.round(cur).toLocaleString(); tag.style.top=pToY(cur,sc)+'px';}
+  if(tag){
+    const ty=pToY(cur,sc);
+    if(ty<PAD.t || ty>PAD.t+sc.ch){
+      tag.style.display='none';
+    } else {
+      tag.style.display='';
+      tag.textContent=Math.round(cur).toLocaleString();
+      tag.style.top=ty+'px';
+    }
+  }
 
   // Saved lines
   LINES.forEach(line=>drawLine(ctx,line,sc,W,H,false,SELECTED===line.id));
@@ -420,6 +429,7 @@ function attachChart(tfId){
 
     // 2-finger: pinch
     if(e.touches&&e.touches.length>=2){
+      if(LOCKED.has(tfId)){state=null;return;}
       const t1=e.touches[0],t2=e.touches[1];
       state={type:'pinch',
         dist0:Math.hypot(t1.clientX-t2.clientX,t1.clientY-t2.clientY),
@@ -460,7 +470,7 @@ function attachChart(tfId){
         renderAll(); return;
       }
       SELECTED=null;
-      state={type:'pan', startX:p.x, startY:p.y, startT:t, startP:pr};
+      state={type:'pan', lastX:p.x, lastY:p.y};
       renderAll(); return;
     }
 
@@ -500,12 +510,13 @@ function attachChart(tfId){
     const t=xToT(p.x,sc), pr=yToP(p.y,sc);
 
     if(state.type==='pan'){
-      const dT=state.startT-t, dP=state.startP-pr;
-      VIEW[tfId].offsetT+=dT;
-      VIEW[tfId].offsetP+=dP;
-      // Update start so delta is incremental
-      state.startT=xToT(p.x,sc);
-      state.startP=yToP(p.y,sc);
+      // Use pixel delta from last position, convert to time/price units
+      const dxPx=p.x-state.lastX;
+      const dyPx=p.y-state.lastY;
+      // time per pixel = tr/cw, price per pixel = vr/ch
+      VIEW[tfId].offsetT -= dxPx*(sc.tr/sc.cw);
+      VIEW[tfId].offsetP += dyPx*(sc.vr/sc.ch);
+      state.lastX=p.x; state.lastY=p.y;
       renderAll(); return;
     }
 
