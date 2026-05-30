@@ -14,14 +14,24 @@
   --bg:#0a0a0a;--surface:#181818;--border:#1e2530;
   --text:#e8e8e8;--dim:#4a5a6e;--mono:'Share Tech Mono',monospace;
   --bull:#ff3d5a;--bear:#00c4ff;--gold:#f5c842;
+  --toolbar-bg:rgba(8,10,13,.97);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:hidden;}
 #charts{overflow-y:auto;}
+.cfg-sec{font-size:10px;color:#888;letter-spacing:2px;margin-bottom:8px;padding-top:4px;}
+.cfg-pal-cnt{height:30px;min-width:32px;padding:0 8px;border-radius:4px;border:1px solid #333;
+  background:#222;color:#888;font-family:var(--mono);font-size:12px;cursor:pointer;}
+.cfg-pal-cnt.active{border-color:var(--gold);color:var(--gold);}
+.cfg-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#222;
+  border:1px solid #333;border-radius:5px;margin-bottom:6px;}
+.cfg-label{font-size:12px;color:#ccc;flex:1;}
+.cfg-range{flex:1;accent-color:var(--gold);}
+.cfg-drag{color:#555;cursor:grab;font-size:16px;padding:0 4px;}
 
 #toolbar{
   position:sticky;top:0;z-index:100;
-  background:rgba(8,10,13,.97);backdrop-filter:blur(10px);
+  background:var(--toolbar-bg);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--border);
   padding:8px 10px;display:flex;flex-direction:column;gap:7px;
 }
@@ -104,6 +114,12 @@ canvas{display:block;width:100%;touch-action:pan-y;}
         <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"/>
       </svg>
     </button>
+    <button class="tb-btn" onclick="openSettings()" title="設定">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#e8e8e8" stroke-width="1.4" stroke-linecap="round">
+        <circle cx="8" cy="8" r="2.5"/>
+        <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4"/>
+      </svg>
+    </button>
   </div>
   <!-- Row 2: Palette + Style -->
   <div class="tb-row">
@@ -112,6 +128,11 @@ canvas{display:block;width:100%;touch-action:pan-y;}
     <div class="pal-slot" id="pal2"></div>
     <div class="pal-slot" id="pal3"></div>
     <div class="pal-slot" id="pal4"></div>
+    <div class="pal-slot" id="pal5" style="display:none"></div>
+    <div class="pal-slot" id="pal6" style="display:none"></div>
+    <div class="pal-slot" id="pal7" style="display:none"></div>
+    <div class="pal-slot" id="pal8" style="display:none"></div>
+    <div class="pal-slot" id="pal9" style="display:none"></div>
     <input type="color" id="palPicker" style="width:0;height:0;opacity:0;position:absolute">
     <div class="tb-sep"></div>
     <button class="sty-btn active" data-sty="solid" onclick="setStyle(this)">実線</button>
@@ -134,12 +155,51 @@ canvas{display:block;width:100%;touch-action:pan-y;}
   </div></div>
 
 <div id="charts">
-  <div class="chart-wrap"><div class="tf-label">60分足</div><canvas id="cv_1h"></canvas><div class="price-tag" id="tag_1h"></div></div>
-  <div class="chart-wrap"><div class="tf-label">15分足</div><canvas id="cv_15m"></canvas><div class="price-tag" id="tag_15m"></div></div>
-  <div class="chart-wrap"><div class="tf-label">5分足</div><canvas id="cv_5m"></canvas><div class="price-tag" id="tag_5m"></div></div>
+  <div class="chart-wrap" id="wrap_1h"><div class="tf-label">60分足</div><canvas id="cv_1h"></canvas><div class="price-tag" id="tag_1h"></div></div>
+  <div class="chart-wrap" id="wrap_15m"><div class="tf-label">15分足</div><canvas id="cv_15m"></canvas><div class="price-tag" id="tag_15m"></div></div>
+  <div class="chart-wrap" id="wrap_5m"><div class="tf-label">5分足</div><canvas id="cv_5m"></canvas><div class="price-tag" id="tag_5m"></div></div>
 </div>
 
 <div id="toast"></div>
+
+<!-- Settings Panel -->
+<div id="settingsOverlay" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.7)" onclick="closeSettings()"></div>
+<div id="settingsPanel" style="display:none;position:fixed;top:0;right:0;bottom:0;z-index:301;width:min(320px,90vw);background:#1a1a1a;border-left:1px solid #333;overflow-y:auto;padding:16px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:12px;">
+    <div style="font-size:11px;letter-spacing:3px;color:#888">設定</div>
+    <button onclick="closeSettings()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
+  </div>
+
+  <!-- Toolbar BG Color -->
+  <div class="cfg-sec">ツールバー背景色</div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+    <input type="color" id="cfgToolbarBg" value="#0a0a0a" onchange="applyToolbarBg(this.value)"
+      style="width:36px;height:36px;border:none;border-radius:6px;cursor:pointer;padding:2px;">
+    <div style="font-size:12px;color:#888">タップで色を変更</div>
+  </div>
+
+  <!-- Palette count -->
+  <div class="cfg-sec">パレット色数</div>
+  <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
+    <script>for(let i=3;i<=10;i++) document.write('<button class="cfg-pal-cnt" data-n="'+i+'" onclick="setPalCount('+i+')">'+i+'</button>');</script>
+  </div>
+
+  <!-- Palette colors -->
+  <div class="cfg-sec">パレット色カスタム</div>
+  <div id="cfgPalList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+
+  <!-- Chart order -->
+  <div class="cfg-sec">チャート表示順</div>
+  <div id="cfgChartOrder" style="margin-bottom:16px;"></div>
+
+  <!-- Chart heights -->
+  <div class="cfg-sec">チャート縦幅</div>
+  <div id="cfgChartHeights" style="margin-bottom:16px;"></div>
+
+  <!-- Candle count -->
+  <div class="cfg-sec">ローソク足表示本数</div>
+  <div id="cfgCandleCount" style="margin-bottom:16px;"></div>
+</div>
 
 <script>
 // ===== CONFIG =====
@@ -381,6 +441,15 @@ function drawLine(ctx,line,sc,W,H,preview,selected){
         ctx.fillStyle=line.color; ctx.fill();
         ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.stroke();
       });
+      // Channel parallel line handles
+      if(line.type==='channel'&&line.phase===2){
+        const offPx=(line.p3Price-line.p1Price)*sc.ch/sc.vr;
+        [[x1,y1-offPx],[x2,y2-offPx]].forEach(([ex,ey])=>{
+          ctx.beginPath(); ctx.arc(ex,ey,5,0,Math.PI*2);
+          ctx.fillStyle='rgba(255,255,255,.3)'; ctx.fill();
+          ctx.strokeStyle=line.color; ctx.lineWidth=1.2; ctx.stroke();
+        });
+      }
     }
 
   } else if(line.type==='channel'){
@@ -548,8 +617,11 @@ TFS.forEach(tf=>{
         const ep=movingLine._ep;
         if(ep){
           // Endpoint drag: only move one end
-          if(ep==='p1'){ l.p1Time=movingLine.p1Time+dT; l.p1Price=movingLine.p1Price+dP; }
-          else          { l.p2Time=movingLine.p2Time+dT; l.p2Price=movingLine.p2Price+dP; }
+        if(ep==='ch_p1'||ep==='ch_p2'){
+          // Channel width adjustment
+          l.p3Price=movingLine.p3Price+dP;
+        } else if(ep==='p1'){ l.p1Time=movingLine.p1Time+dT; l.p1Price=movingLine.p1Price+dP; }
+        else          { l.p2Time=movingLine.p2Time+dT; l.p2Price=movingLine.p2Price+dP; }
         } else if(l.type==='hline'){
           l.p1Price=movingLine.p1Price+dP;
         } else {
@@ -707,20 +779,215 @@ function attachPaletteEvents(){
 
 function setColorHex(c){ COLOR=c; }
 
-// ===== LINE ENDPOINT DRAG (angle edit) =====
+// ===== SETTINGS =====
+const SETTINGS_KEY='n225_settings';
+let SETTINGS={
+  toolbarBg:'#141414',
+  palCount:5,
+  chartOrder:['1h','15m','5m'],
+  chartHeights:{1h:198,15m:186,'5m':186},
+  candleCount:{1h:0,15m:0,'5m':0}, // 0 = auto
+};
+
+function loadSettings(){
+  try{ Object.assign(SETTINGS, JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}')); }catch{}
+  applyToolbarBg(SETTINGS.toolbarBg||'#141414');
+}
+function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY,JSON.stringify(SETTINGS)); }catch{} }
+
+function applyToolbarBg(c){
+  SETTINGS.toolbarBg=c;
+  document.getElementById('toolbar').style.background=c;
+  document.getElementById('toolbar').style.backdropFilter='none';
+  saveSettings();
+}
+
+function openSettings(){
+  renderSettingsPanel();
+  document.getElementById('settingsOverlay').style.display='block';
+  document.getElementById('settingsPanel').style.display='block';
+}
+function closeSettings(){
+  document.getElementById('settingsOverlay').style.display='none';
+  document.getElementById('settingsPanel').style.display='none';
+}
+
+function setPalCount(n){
+  SETTINGS.palCount=n;
+  // Ensure palette has enough entries
+  while(PALETTE.length<n) PALETTE.push('#ffffff');
+  saveSettings(); savePalette();
+  renderPalette(); renderSettingsPanel();
+}
+
+function renderSettingsPanel(){
+  // Toolbar bg
+  const tbBgEl=document.getElementById('cfgToolbarBg');
+  if(tbBgEl) tbBgEl.value=SETTINGS.toolbarBg||'#141414';
+
+  // Palette count buttons
+  const cntEl=document.querySelector('#settingsPanel .cfg-pal-cnt')?.parentElement;
+  if(cntEl){
+    cntEl.querySelectorAll('.cfg-pal-cnt').forEach(b=>{
+      b.classList.toggle('active', parseInt(b.dataset.n)===SETTINGS.palCount);
+    });
+  }
+
+  // Palette color list
+  const palList=document.getElementById('cfgPalList');
+  if(palList){
+    palList.innerHTML='';
+    for(let i=0;i<SETTINGS.palCount;i++){
+      const row=document.createElement('div');
+      row.className='cfg-row';
+      row.innerHTML=`<div style="width:28px;height:28px;border-radius:50%;background:${PALETTE[i]||'#fff'};border:1px solid #555;flex-shrink:0"></div>`
+        +`<div class="cfg-label">色 ${i+1}</div>`
+        +`<input type="color" value="${PALETTE[i]||'#ffffff'}" data-idx="${i}"
+            style="width:36px;height:28px;border:none;border-radius:4px;cursor:pointer;padding:1px;"
+            onchange="palColorChange(${i},this.value)">`;
+      palList.appendChild(row);
+    }
+  }
+
+  // Chart order (drag to reorder)
+  const orderEl=document.getElementById('cfgChartOrder');
+  if(orderEl){
+    orderEl.innerHTML='';
+    SETTINGS.chartOrder.forEach((id,i)=>{
+      const tf=TFS.find(t=>t.id===id);
+      if(!tf) return;
+      const row=document.createElement('div');
+      row.className='cfg-row';
+      row.draggable=true;
+      row.dataset.idx=i;
+      row.innerHTML=`<div class="cfg-drag">☰</div><div class="cfg-label">${tf.label}</div>`;
+      row.addEventListener('dragstart',e=>{ e.dataTransfer.setData('text/plain',i); });
+      row.addEventListener('dragover',e=>e.preventDefault());
+      row.addEventListener('drop',e=>{
+        e.preventDefault();
+        const from=parseInt(e.dataTransfer.getData('text/plain'));
+        const to=i;
+        if(from===to) return;
+        const arr=[...SETTINGS.chartOrder];
+        const [m]=arr.splice(from,1); arr.splice(to,0,m);
+        SETTINGS.chartOrder=arr;
+        saveSettings(); applyChartOrder(); renderSettingsPanel();
+      });
+      orderEl.appendChild(row);
+    });
+  }
+
+  // Chart heights
+  const hEl=document.getElementById('cfgChartHeights');
+  if(hEl){
+    hEl.innerHTML='';
+    SETTINGS.chartOrder.forEach(id=>{
+      const tf=TFS.find(t=>t.id===id);
+      if(!tf) return;
+      const h=SETTINGS.chartHeights[id]||tf.h;
+      const row=document.createElement('div');
+      row.className='cfg-row';
+      row.innerHTML=`<div class="cfg-label">${tf.label}</div>`
+        +`<input type="range" class="cfg-range" min="80" max="400" value="${h}" data-id="${id}"
+            oninput="this.nextElementSibling.textContent=this.value+'px';setChartHeight('${id}',parseInt(this.value))">`
+        +`<div style="font-size:11px;color:#888;width:36px">${h}px</div>`;
+      hEl.appendChild(row);
+    });
+  }
+
+  // Candle count
+  const ccEl=document.getElementById('cfgCandleCount');
+  if(ccEl){
+    ccEl.innerHTML='';
+    SETTINGS.chartOrder.forEach(id=>{
+      const tf=TFS.find(t=>t.id===id);
+      if(!tf) return;
+      const cnt=SETTINGS.candleCount?.[id]||0;
+      const row=document.createElement('div');
+      row.className='cfg-row';
+      row.innerHTML=`<div class="cfg-label">${tf.label}</div>`
+        +`<input type="range" class="cfg-range" min="0" max="300" step="10" value="${cnt}" data-id="${id}"
+            oninput="this.nextElementSibling.textContent=this.value==0?'自動':this.value+'本';setCandleCount('${id}',parseInt(this.value))">`
+        +`<div style="font-size:11px;color:#888;width:36px">${cnt===0?'自動':cnt+'本'}</div>`;
+      ccEl.appendChild(row);
+    });
+  }
+}
+
+function palColorChange(i,c){
+  PALETTE[i]=c; savePalette(); renderPalette();
+  if(i===PAL_ACTIVE) COLOR=c;
+  renderSettingsPanel();
+}
+
+function applyChartOrder(){
+  const chartsEl=document.getElementById('charts');
+  SETTINGS.chartOrder.forEach(id=>{
+    const wrap=document.getElementById('wrap_'+id);
+    if(wrap) chartsEl.appendChild(wrap);
+  });
+  renderAll();
+}
+
+function setChartHeight(id,h){
+  SETTINGS.chartHeights[id]=h;
+  const tf=TFS.find(t=>t.id===id);
+  if(tf) tf.h=h;
+  saveSettings(); renderAll();
+}
+function setCandleCount(id,n){
+  if(!SETTINGS.candleCount) SETTINGS.candleCount={};
+  SETTINGS.candleCount[id]=n;
+  saveSettings(); renderAll();
+}
+
+// Apply settings on load
+function applyAllSettings(){
+  applyToolbarBg(SETTINGS.toolbarBg||'#141414');
+  SETTINGS.chartOrder.forEach(id=>{
+    const tf=TFS.find(t=>t.id===id);
+    if(tf && SETTINGS.chartHeights?.[id]) tf.h=SETTINGS.chartHeights[id];
+  });
+  // Palette count
+  while(PALETTE.length < (SETTINGS.palCount||5)) PALETTE.push('#ffffff');
+}
+
+// ===== STYLE CHANGE ON SELECTED LINE =====
+function setStyle(btn){
+  STYLE=btn.dataset.sty;
+  document.querySelectorAll('.sty-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // Change selected line style
+  if(SELECTED){
+    pushUndo();
+    const l=LINES.find(l=>l.id===SELECTED);
+    if(l){ l.style=STYLE; saveLines(); renderAll(); }
+  }
+}
+
+
 // In pan mode, if touch is near an endpoint → drag that endpoint
+function renderPaletteUI(){
+  const n=SETTINGS.palCount||5;
+  for(let i=0;i<10;i++){
+    const el=document.getElementById('pal'+i);
+    if(el) el.style.display=i<n?'':'none';
+  }
+}
+
 function findEndpointHit(line,x,y,sc,thresh=18){
   if(line.type==='hline') return null;
   const x1=timeToX(line.p1Time,sc), y1=priceToY(line.p1Price,sc);
   const x2=timeToX(line.p2Time,sc), y2=priceToY(line.p2Price,sc);
   if(Math.hypot(x-x1,y-y1)<thresh) return 'p1';
   if(Math.hypot(x-x2,y-y2)<thresh) return 'p2';
+  // Channel parallel line endpoints for width adjustment
+  if(line.type==='channel' && line.phase===2){
+    const offPx=(line.p3Price-line.p1Price)*sc.ch/sc.vr;
+    if(Math.hypot(x-x1, y-(y1-offPx))<thresh) return 'ch_p1';
+    if(Math.hypot(x-x2, y-(y2-offPx))<thresh) return 'ch_p2';
+  }
   return null;
-}
-function setStyle(btn){
-  STYLE=btn.dataset.sty;
-  document.querySelectorAll('.sty-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
 }
 
 // ===== TOAST =====
@@ -733,15 +1000,14 @@ function toast(msg){
 }
 
 window.addEventListener('resize', renderAll);
-// Run palette events after DOM is fully ready
+loadSettings();
 window.addEventListener('DOMContentLoaded', ()=>{
-  loadPalette();
-  attachPaletteEvents();
+  loadPalette(); applyAllSettings(); attachPaletteEvents();
+  renderPaletteUI();
 });
-// Also try immediately in case DOMContentLoaded already fired
 if(document.readyState !== 'loading'){
-  loadPalette();
-  attachPaletteEvents();
+  loadPalette(); applyAllSettings(); attachPaletteEvents();
+  renderPaletteUI();
 }
 loadAll();
 </script>
