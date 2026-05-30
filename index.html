@@ -13,7 +13,7 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
   --bg:#0a0a0a;--surface:#181818;--border:#333;
-  --text:#e8e8e8;--dim:#666;--gold:#f5c842;
+  --text:#e8e8e8;--dim:#aab2bd;--gold:#f5c842;
   --bull:#ff3d5a;--bear:#00c4ff;--mono:'Share Tech Mono',monospace;
 }
 body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow:hidden;height:100vh;display:flex;flex-direction:column;}
@@ -21,7 +21,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow:hid
 /* TOOLBAR */
 #toolbar{flex-shrink:0;background:#1e1e1e;border-bottom:1px solid var(--border);padding:6px 8px;display:flex;flex-direction:column;gap:5px;}
 .tb-row{display:flex;align-items:center;gap:5px;}
-.tb-btn{height:32px;padding:0 10px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--dim);font-family:var(--mono);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:3px;white-space:nowrap;}
+.tb-btn{height:32px;padding:0 10px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:#d5dae0;font-family:var(--mono);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:3px;white-space:nowrap;}
 .tb-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(245,200,66,.1);}
 .tb-btn.del-mode{border-color:var(--bull);color:var(--bull);background:rgba(255,61,90,.1);}
 .tb-btn.disabled{opacity:.3;pointer-events:none;}
@@ -284,13 +284,14 @@ function renderChart(tfId){
     ctx.fillText(Math.round(sc.maxP-(sc.vr/4)*i).toLocaleString(),W-PAD.r+3,yy+3);
   }
 
-  // Candles
+  // Candles (time-based X so pan/zoom works)
   const cfgN=CFG.candles[tfId]||0;
   const dispBars=cfgN>0?bars.slice(-Math.min(cfgN,bars.length)):bars;
-  const n=dispBars.length;
-  const bw=Math.max(1.5,sc.cw/n*0.6);
-  dispBars.forEach((bar,i)=>{
-    const cx=PAD.l+(i+0.5)/n*sc.cw;
+  // candle width based on time spacing between bars
+  const barGapT = dispBars.length>1 ? (dispBars[dispBars.length-1].t-dispBars[0].t)/(dispBars.length-1) : 1;
+  const bw=Math.max(1, (barGapT/sc.tr)*sc.cw*0.6);
+  dispBars.forEach((bar)=>{
+    const cx=tToX(bar.t,sc);
     if(cx<PAD.l-bw*2||cx>W-PAD.r+bw*2)return;
     const bull=bar.c>=bar.o;
     ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
