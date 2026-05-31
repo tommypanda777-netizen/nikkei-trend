@@ -133,6 +133,9 @@ const TF_DEFS = {
   '5m':  {label:'5分足',  interval:'5m',  range:'1d'},
   '15m': {label:'15分足', interval:'15m', range:'2d'},
   '1h':  {label:'60分足', interval:'1h',  range:'5d'},
+  '1d':  {label:'日足',   interval:'1d',  range:'1y'},
+  '1wk': {label:'週足',   interval:'1wk', range:'5y'},
+  '1mo': {label:'月足',   interval:'1mo', range:'10y'},
 };
 const PAD = {l:4, r:52, t:10, b:18};
 
@@ -159,9 +162,10 @@ let CFG = {
   auto: '0',
   tbBg: '#1e1e1e',
   palCount: 5,
-  order: ['5m','15m','1h'],
-  heights: {'5m':200,'15m':200,'1h':200},
-  candles: {'5m':0,'15m':0,'1h':0},
+  order: ['5m','15m','1h','1d','1wk','1mo'],
+  visible: {'5m':true,'15m':true,'1h':true,'1d':false,'1wk':false,'1mo':false},
+  heights: {'5m':200,'15m':200,'1h':200,'1d':200,'1wk':200,'1mo':200},
+  candles: {'5m':0,'15m':0,'1h':0,'1d':0,'1wk':0,'1mo':0},
 };
 let PALETTE = ['#ffffff','#ff3d5a','#00c4ff','#f5c842','#44ff88','#ff8844','#cc88ff','#aaaaaa','#00ff00','#ff00ff'];
 let PAL_ACTIVE = 0;
@@ -171,7 +175,21 @@ const SK = () => 'chart_lines_'+SYM;
 function saveLines(){ try{localStorage.setItem(SK(),JSON.stringify(LINES));}catch{} }
 function loadLines(){ try{LINES=JSON.parse(localStorage.getItem(SK())||'[]');}catch{LINES=[];} }
 function saveCfg(){  try{localStorage.setItem('chart_cfg',JSON.stringify(CFG));}catch{} }
-function loadCfg(){  try{const c=JSON.parse(localStorage.getItem('chart_cfg')||'{}'); Object.assign(CFG,c);}catch{} }
+function loadCfg(){
+  try{
+    const c=JSON.parse(localStorage.getItem('chart_cfg')||'{}');
+    Object.assign(CFG,c);
+  }catch{}
+  // Migration: ensure all known TFs exist in order/visible/heights/candles
+  const allTFs=['5m','15m','1h','1d','1wk','1mo'];
+  if(!CFG.visible) CFG.visible={};
+  allTFs.forEach(id=>{
+    if(!CFG.order.includes(id)) CFG.order.push(id);
+    if(CFG.visible[id]===undefined) CFG.visible[id]=(id==='5m'||id==='15m'||id==='1h');
+    if(CFG.heights[id]===undefined) CFG.heights[id]=200;
+    if(CFG.candles[id]===undefined) CFG.candles[id]=0;
+  });
+}
 function savePal(){  try{localStorage.setItem('chart_pal',JSON.stringify(PALETTE));}catch{} }
 function loadPal(){  try{const p=JSON.parse(localStorage.getItem('chart_pal')||'null'); if(p)PALETTE=p;}catch{} }
 const VK = () => 'chart_view_'+SYM;
@@ -216,9 +234,12 @@ async function fetchYahoo(sym,interval,range){
 async function loadAll(){
   document.getElementById('updTime').textContent='…';
   loadView();
-  const tfs=CFG.order.map(id=>TF_DEFS[id]);
-  const results=await Promise.allSettled(tfs.map(tf=>fetchYahoo(SYM,tf.interval,tf.range)));
-  CFG.order.forEach((id,i)=>{
+  const visibleIds=CFG.order.filter(id=>CFG.visible[id]);
+  const results=await Promise.allSettled(visibleIds.map(id=>{
+    const tf=TF_DEFS[id];
+    return fetchYahoo(SYM,tf.interval,tf.range);
+  }));
+  visibleIds.forEach((id,i)=>{
     DATA[id]=results[i].value||null;
     if(!VIEW[id]) VIEW[id]={offsetT:0,scaleT:1,offsetP:0,scaleP:1};
   });
@@ -260,7 +281,7 @@ function xToT(x,sc){return sc.minT+(x-PAD.l)/sc.cw*sc.tr;}
 function yToP(y,sc){return sc.maxP-(y-PAD.t)/sc.ch*sc.vr;}
 
 // ==================== RENDER ====================
-function renderAll(){CFG.order.forEach(id=>renderChart(id));}
+function renderAll(){CFG.order.filter(id=>CFG.visible[id]).forEach(id=>renderChart(id));}
 
 function renderChart(tfId){
   const cv=document.getElementById('cv_'+tfId);
@@ -725,14 +746,21 @@ function renderSettings(){
     pc.appendChild(row);
   }
 
-  // Order
+  // Order (with visibility checkbox)
   const ord=document.getElementById('cfgOrder');
   ord.innerHTML='';
   CFG.order.forEach((id,i)=>{
     const tf=TF_DEFS[id];
     const row=document.createElement('div');
     row.className='cfg-row'; row.draggable=true; row.dataset.i=i;
-    row.innerHTML=`<span style="color:#555;cursor:grab;margin-right:4px">☰</span><div class="cfg-label">${tf.label}</div>`;
+    row.innerHTML=`<span style="color:#555;cursor:grab;margin-right:4px">☰</span><div class="cfg-label">${tf.label}</div><input type="checkbox" ${CFG.visible[id]?'checked':''} style="width:18px;height:18px;accent-color:var(--gold);cursor:pointer;flex-shrink:0">`;
+    const chk=row.querySelector('input[type=checkbox]');
+    chk.onchange=function(){
+      CFG.visible[id]=this.checked;
+      saveCfg(); rebuildCharts(); loadAll(); renderSettings();
+    };
+    // prevent drag from starting on checkbox
+    chk.addEventListener('mousedown',e=>e.stopPropagation());
     row.addEventListener('dragstart',e=>e.dataTransfer.setData('text/plain',i));
     row.addEventListener('dragover',e=>e.preventDefault());
     row.addEventListener('drop',e=>{
@@ -746,7 +774,7 @@ function renderSettings(){
     ord.appendChild(row);
   });
 
-  // Heights
+  // Heights (all TFs)
   const hts=document.getElementById('cfgHeights');
   hts.innerHTML='';
   CFG.order.forEach(id=>{
@@ -762,7 +790,7 @@ function renderSettings(){
     hts.appendChild(row);
   });
 
-  // Candles
+  // Candles (all TFs)
   const can=document.getElementById('cfgCandles');
   can.innerHTML='';
   CFG.order.forEach(id=>{
@@ -794,7 +822,7 @@ function buildAutoSel(){
 function rebuildCharts(){
   const container=document.getElementById('charts');
   container.innerHTML='';
-  CFG.order.forEach(id=>{
+  CFG.order.filter(id=>CFG.visible[id]).forEach(id=>{
     const tf=TF_DEFS[id];
     const wrap=document.createElement('div');
     wrap.className='chart-wrap'; wrap.id='wrap_'+id;
