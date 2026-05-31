@@ -455,14 +455,16 @@ function attachChart(tfId){
     const sc=getScale(tfId);
     if(!sc)return;
 
-    // 2-finger: pinch
+    // 2-finger: pinch (zoom) or parallel swipe (page scroll)
     if(e.touches&&e.touches.length>=2){
-      if(LOCKED.has(tfId)){state=null;return;}
       const t1=e.touches[0],t2=e.touches[1];
-      state={type:'pinch',
+      state={type:'twoFinger',
         dist0:Math.hypot(t1.clientX-t2.clientX,t1.clientY-t2.clientY),
         dx0:Math.abs(t1.clientX-t2.clientX),
-        dy0:Math.abs(t1.clientY-t2.clientY)};
+        dy0:Math.abs(t1.clientY-t2.clientY),
+        midY0:(t1.clientY+t2.clientY)/2,
+        scrollTop0:document.getElementById('charts').scrollTop,
+        mode:null, locked:LOCKED.has(tfId)};
       return;
     }
 
@@ -519,19 +521,37 @@ function attachChart(tfId){
     const sc=getScale(tfId);
     if(!sc)return;
 
-    // Pinch
-    if(state.type==='pinch'&&e.touches&&e.touches.length>=2){
+    // Two-finger: decide scroll (parallel) vs zoom (pinch)
+    if(state.type==='twoFinger'&&e.touches&&e.touches.length>=2){
       const t1=e.touches[0],t2=e.touches[1];
       const dist=Math.hypot(t1.clientX-t2.clientX,t1.clientY-t2.clientY);
-      const ratio=dist/state.dist0;
-      const v=VIEW[tfId];
-      if(state.dx0>=state.dy0){
-        v.scaleT=Math.max(0.2,Math.min(30,v.scaleT*ratio));
-      } else {
-        v.scaleP=Math.max(0.2,Math.min(30,v.scaleP*ratio));
+      const midY=(t1.clientY+t2.clientY)/2;
+      // Determine mode on first significant move
+      if(!state.mode){
+        const distChange=Math.abs(dist-state.dist0);
+        const midMove=Math.abs(midY-state.midY0);
+        if(distChange>midMove && distChange>8) state.mode='zoom';
+        else if(midMove>8) state.mode='scroll';
       }
-      state.dist0=dist;
-      renderAll(); return;
+      if(state.mode==='scroll'){
+        // Scroll the whole page
+        const charts=document.getElementById('charts');
+        charts.scrollTop=state.scrollTop0-(midY-state.midY0);
+        return;
+      }
+      if(state.mode==='zoom'){
+        if(state.locked) return;
+        const ratio=dist/state.dist0;
+        const v=VIEW[tfId];
+        if(state.dx0>=state.dy0){
+          v.scaleT=Math.max(0.2,Math.min(30,v.scaleT*ratio));
+        } else {
+          v.scaleP=Math.max(0.2,Math.min(30,v.scaleP*ratio));
+        }
+        state.dist0=dist;
+        renderAll();
+      }
+      return;
     }
 
     const p=pos(e);
@@ -586,7 +606,7 @@ function attachChart(tfId){
       state=null; return;
     }
 
-    if(state.type==='pinch'){state=null;saveView();return;}
+    if(state.type==='twoFinger'){const wasZoom=state.mode==='zoom';state=null;if(wasZoom)saveView();return;}
     if(state.type==='pan'){state=null;saveView();return;}
 
     // draw end
