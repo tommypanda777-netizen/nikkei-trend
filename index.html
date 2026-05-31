@@ -130,7 +130,7 @@ const SYMS = {
   '1579.T': '1579',
 };
 const TF_DEFS = {
-  '5m':  {label:'5分足',  interval:'5m',  range:'1d'},
+  '5m':  {label:'5分足',  interval:'5m',  range:'1d', fallbackRange:'5d'},
   '15m': {label:'15分足', interval:'15m', range:'2d'},
   '1h':  {label:'60分足', interval:'1h',  range:'5d'},
   '1d':  {label:'日足',   interval:'1d',  range:'1y'},
@@ -238,9 +238,19 @@ async function loadAll(){
   // Fetch sequentially with small delay to avoid proxy rate limits
   for(const id of visibleIds){
     const tf=TF_DEFS[id];
-    DATA[id]=await fetchYahoo(SYM,tf.interval,tf.range);
+    let bars=await fetchYahoo(SYM,tf.interval,tf.range);
+    if(!bars){
+      await new Promise(r=>setTimeout(r,600));
+      bars=await fetchYahoo(SYM,tf.interval,tf.range);
+    }
+    // Try fallback range (e.g. 5m: 1d→5d when market closed)
+    if(!bars && tf.fallbackRange){
+      await new Promise(r=>setTimeout(r,400));
+      bars=await fetchYahoo(SYM,tf.interval,tf.fallbackRange);
+    }
+    DATA[id]=bars;
     if(!VIEW[id]) VIEW[id]={offsetT:0,scaleT:1,offsetP:0,scaleP:1};
-    renderChart(id); // progressive render
+    renderChart(id);
   }
   loadLines();
   renderAll();
