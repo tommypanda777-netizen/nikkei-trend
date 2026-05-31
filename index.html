@@ -235,14 +235,13 @@ async function loadAll(){
   document.getElementById('updTime').textContent='…';
   loadView();
   const visibleIds=CFG.order.filter(id=>CFG.visible[id]);
-  const results=await Promise.allSettled(visibleIds.map(id=>{
+  // Fetch sequentially with small delay to avoid proxy rate limits
+  for(const id of visibleIds){
     const tf=TF_DEFS[id];
-    return fetchYahoo(SYM,tf.interval,tf.range);
-  }));
-  visibleIds.forEach((id,i)=>{
-    DATA[id]=results[i].value||null;
+    DATA[id]=await fetchYahoo(SYM,tf.interval,tf.range);
     if(!VIEW[id]) VIEW[id]={offsetT:0,scaleT:1,offsetP:0,scaleP:1};
-  });
+    renderChart(id); // progressive render
+  }
   loadLines();
   renderAll();
   const n=new Date();
@@ -487,7 +486,7 @@ function attachChart(tfId){
         if(sel){
           const ep=hitEndpoint(sel,p.x,p.y,sc);
           if(ep){
-            state={type:'moveLine', lineSnap:JSON.parse(JSON.stringify(sel)), ep, startT:t, startP:pr};
+            state={type:'moveLine', lineSnap:JSON.parse(JSON.stringify(sel)), ep, startT:t, startP:pr, moved:false, undoSnap:JSON.stringify(LINES)};
             return;
           }
         }
@@ -496,7 +495,7 @@ function attachChart(tfId){
       const hit=[...LINES].reverse().find(l=>hitLine(l,p.x,p.y,sc));
       if(hit){
         SELECTED=hit.id;
-        state={type:'moveLine', lineSnap:JSON.parse(JSON.stringify(hit)), ep:null, startT:t, startP:pr};
+        state={type:'moveLine', lineSnap:JSON.parse(JSON.stringify(hit)), ep:null, startT:t, startP:pr, moved:false, undoSnap:JSON.stringify(LINES)};
         renderAll(); return;
       }
       SELECTED=null;
@@ -569,6 +568,7 @@ function attachChart(tfId){
     }
 
     if(state.type==='moveLine'){
+      state.moved=true;
       const dT=t-state.startT, dP=pr-state.startP;
       const idx=LINES.findIndex(l=>l.id===state.lineSnap.id);
       if(idx<0)return;
@@ -602,7 +602,10 @@ function attachChart(tfId){
     if(!state)return;
 
     if(state.type==='moveLine'){
-      pushUndo(); saveLines();
+      if(state.moved){
+        UNDO.push(state.undoSnap); REDO=[]; updateUndoBtns();
+        saveLines();
+      }
       state=null; return;
     }
 
