@@ -364,11 +364,24 @@ function getScale(tfId){
   const midC=(rawMinC+rawMaxC)/2+v.offsetT;
   const minC=midC-visCR/2, maxC=midC+visCR/2;
 
-  // Price axis
-  const rawMinP=Math.min(...bars.map(b=>b.l)), rawMaxP=Math.max(...bars.map(b=>b.h));
-  const rawVR=rawMaxP-rawMinP||1;
-  const visVR=rawVR/v.scaleP;
-  const midP=(rawMinP+rawMaxP)/2+v.offsetP;
+  // Price axis — based on bars currently visible in the time window,
+  // so each chart's vertical scale fits what's on screen.
+  let vMinP=Infinity, vMaxP=-Infinity;
+  for(let bi=0;bi<bars.length;bi++){
+    const c=cm.compArr[bi];
+    if(c<minC-1e-9||c>maxC+1e-9) continue;
+    if(bars[bi].l<vMinP) vMinP=bars[bi].l;
+    if(bars[bi].h>vMaxP) vMaxP=bars[bi].h;
+  }
+  if(!isFinite(vMinP)||!isFinite(vMaxP)){
+    vMinP=Math.min(...bars.map(b=>b.l));
+    vMaxP=Math.max(...bars.map(b=>b.h));
+  }
+  const rawVR=(vMaxP-vMinP)||1;
+  // small padding so candles don't touch edges
+  const padP=rawVR*0.05;
+  const visVR=(rawVR+padP*2)/v.scaleP;
+  const midP=(vMinP+vMaxP)/2+v.offsetP;
   const minP=midP-visVR/2, maxP=midP+visVR/2;
 
   return {bars,cm,W,H,cw,ch,minC,maxC,cr:maxC-minC||1,minP,maxP,vr:maxP-minP||1,
