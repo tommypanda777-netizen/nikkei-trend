@@ -256,12 +256,32 @@ async function loadAll(){
     }
     DATA[id]=bars;
     if(!VIEW[id]) VIEW[id]={offsetT:0,scaleT:1,offsetP:0,scaleP:1};
+    if(_firstLoadDone) alignRight(id);
     renderChart(id);
   }
   loadLines();
   renderAll();
+  _firstLoadDone=true;
   const n=new Date();
   document.getElementById('updTime').textContent=n.getHours()+':'+String(n.getMinutes()).padStart(2,'0');
+}
+let _firstLoadDone=false;
+
+// Adjust offsetT so the latest bar sits 5 bars in from the right edge,
+// keeping the current zoom level (scaleT) intact.
+const RIGHT_MARGIN_BARS = 5;
+function alignRight(tfId){
+  const bars=DATA[tfId];
+  if(!bars||bars.length<2)return;
+  const v=VIEW[tfId];
+  if(!v)return;
+  const N=bars.length;
+  const rawIR=(N-1)||1;
+  const visIR=rawIR/v.scaleT;
+  // We want maxI (right visible edge) = (N-1) + RIGHT_MARGIN_BARS
+  // maxI = midI + visIR/2, midI = (N-1)/2 + offsetT
+  // => offsetT = (N-1)+margin - visIR/2 - (N-1)/2
+  v.offsetT = (N-1) + RIGHT_MARGIN_BARS - visIR/2 - (N-1)/2;
 }
 
 // ==================== SCALE (index-based to skip closed-market gaps) ====================
