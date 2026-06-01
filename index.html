@@ -192,9 +192,15 @@ function loadCfg(){
 }
 function savePal(){  try{localStorage.setItem('chart_pal',JSON.stringify(PALETTE));}catch{} }
 function loadPal(){  try{const p=JSON.parse(localStorage.getItem('chart_pal')||'null'); if(p)PALETTE=p;}catch{} }
-const VK = () => 'chart_view_'+SYM;
+const VK = () => 'chart_view_v2_'+SYM;
 function saveView(){ try{localStorage.setItem(VK(),JSON.stringify(VIEW));}catch{} }
-function loadView(){ try{const v=JSON.parse(localStorage.getItem(VK())||'null'); if(v){Object.keys(v).forEach(k=>VIEW[k]=v[k]);}}catch{} }
+function loadView(){ try{const v=JSON.parse(localStorage.getItem(VK())||'null'); if(v){Object.keys(v).forEach(k=>{
+  const o=v[k];
+  // Sanity check: offsets must be reasonable index/price values, scales positive
+  if(o && Math.abs(o.offsetT)<100000 && o.scaleT>0 && o.scaleT<100 && o.scaleP>0 && o.scaleP<100){
+    VIEW[k]=o;
+  }
+});}}catch{} }
 function saveLocks(){ try{localStorage.setItem('chart_locks',JSON.stringify([...LOCKED]));}catch{} }
 function loadLocks(){ try{const a=JSON.parse(localStorage.getItem('chart_locks')||'[]'); LOCKED.clear(); a.forEach(id=>LOCKED.add(id));}catch{} }
 
