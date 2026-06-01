@@ -192,7 +192,7 @@ function loadCfg(){
 }
 function savePal(){  try{localStorage.setItem('chart_pal',JSON.stringify(PALETTE));}catch{} }
 function loadPal(){  try{const p=JSON.parse(localStorage.getItem('chart_pal')||'null'); if(p)PALETTE=p;}catch{} }
-const VK = () => 'chart_view_v4_'+SYM;
+const VK = () => 'chart_view_v5_'+SYM;
 function saveView(){ try{localStorage.setItem(VK(),JSON.stringify(VIEW));}catch{} }
 function loadView(){ try{const v=JSON.parse(localStorage.getItem(VK())||'null'); if(v){Object.keys(v).forEach(k=>{
   const o=v[k];
@@ -302,8 +302,8 @@ function applyCandleZoom(tfId){
 // Build a per-chart piecewise-linear map: realTime -> compressedTime.
 // Gaps between consecutive bars larger than (median bar interval * GAP_FACTOR)
 // are compressed to (median interval * GAP_COMPRESS) so closed-market periods shrink.
-const GAP_FACTOR = 3;     // gap > 3x normal interval = closed market
-const GAP_COMPRESS = 1;   // compress big gaps to ~1 normal interval
+const GAP_FACTOR = 3;        // gap > 3x normal interval = closed market
+const GAP_KEEP = 0.20;       // keep 20% of closed-market gap width
 
 function buildCompMap(bars){
   // median interval
@@ -312,19 +312,20 @@ function buildCompMap(bars){
   diffs.sort((a,b)=>a-b);
   const med=diffs[Math.floor(diffs.length/2)]||1;
   const maxGap=med*GAP_FACTOR;
-  const compGap=med*GAP_COMPRESS;
-  // breakpoints: arrays of real-time and corresponding compressed-time
   const realArr=[bars[0].t];
   const compArr=[0];
   let comp=0;
   for(let i=1;i<bars.length;i++){
     let d=bars[i].t-bars[i-1].t;
-    if(d>maxGap) d=compGap; // compress closed-market gap
+    // Compress closed-market gaps proportionally (keep GAP_KEEP of overage)
+    if(d>maxGap){
+      d = med + (d-med)*GAP_KEEP;
+    }
     comp+=d;
     realArr.push(bars[i].t);
     compArr.push(comp);
   }
-  return {realArr,compArr,med,compGap};
+  return {realArr,compArr,med,compGap:med};
 }
 
 // real time -> compressed time (using a chart's comp map)
@@ -440,10 +441,12 @@ function renderChart(tfId){
     ctx.fillText(Math.round(sc.maxP-(sc.vr/4)*i).toLocaleString(),W-PAD.r+3,yy+3);
   }
 
-  // Boundary vertical lines + date labels at bottom (adaptive to timeframe)
+  // Boundary vertical lines + date labels at bottom (adaptive + thinned)
   ctx.font='8px Share Tech Mono'; ctx.textAlign='center';
-  let lastKey=null;
   const intraday=(tfId==='5m'||tfId==='15m'||tfId==='1h');
+  // First pass: collect boundary positions
+  const boundaries=[];
+  let lastKey=null;
   for(let bi=0;bi<bars.length;bi++){
     const d=new Date(bars[bi].t*1000);
     let key, label;
@@ -460,13 +463,25 @@ function renderChart(tfId){
     if(key!==lastKey){
       lastKey=key;
       const cx=tToX(bars[bi].t,sc);
-      if(cx<PAD.l||cx>W-PAD.r) continue;
-      ctx.strokeStyle='rgba(90,90,90,.25)'; ctx.lineWidth=.5;
-      ctx.beginPath(); ctx.moveTo(cx,PAD.t); ctx.lineTo(cx,PAD.t+sc.ch); ctx.stroke();
-      ctx.fillStyle='#777';
-      ctx.fillText(label,cx,H-5);
+      boundaries.push({cx,label});
     }
   }
+  // Draw vertical lines for all in-view boundaries
+  ctx.strokeStyle='rgba(90,90,90,.25)'; ctx.lineWidth=.5;
+  boundaries.forEach(b=>{
+    if(b.cx<PAD.l||b.cx>W-PAD.r)return;
+    ctx.beginPath(); ctx.moveTo(b.cx,PAD.t); ctx.lineTo(b.cx,PAD.t+sc.ch); ctx.stroke();
+  });
+  // Draw labels with thinning (min spacing in px)
+  const MIN_LABEL_PX=42;
+  let lastLabelX=-Infinity;
+  ctx.fillStyle='#777';
+  boundaries.forEach(b=>{
+    if(b.cx<PAD.l||b.cx>W-PAD.r)return;
+    if(b.cx-lastLabelX<MIN_LABEL_PX)return;
+    lastLabelX=b.cx;
+    ctx.fillText(b.label,b.cx,H-5);
+  });
 
   // Candles (compressed-time X)
   // Draw all bars (visible count is controlled by zoom/scaleT)
