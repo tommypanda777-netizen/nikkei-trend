@@ -258,7 +258,7 @@ async function loadAll(){
   document.getElementById('updTime').textContent=n.getHours()+':'+String(n.getMinutes()).padStart(2,'0');
 }
 
-// ==================== SCALE ====================
+// ==================== SCALE (index-based to skip closed-market gaps) ====================
 function getScale(tfId){
   const bars=DATA[tfId];
   if(!bars||bars.length<2)return null;
@@ -269,11 +269,12 @@ function getScale(tfId){
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
   const v=VIEW[tfId]||{offsetT:0,scaleT:1,offsetP:0,scaleP:1};
 
-  // Time axis
-  const rawMinT=bars[0].t, rawMaxT=bars[bars.length-1].t, rawTR=rawMaxT-rawMinT||1;
-  const visTR=rawTR/v.scaleT;
-  const midT=(rawMinT+rawMaxT)/2+v.offsetT;
-  const minT=midT-visTR/2, maxT=midT+visTR/2;
+  // Index axis: bars at positions 0..N-1. offsetT now means index-offset.
+  const N=bars.length;
+  const rawMinI=0, rawMaxI=N-1, rawIR=rawMaxI-rawMinI||1;
+  const visIR=rawIR/v.scaleT;
+  const midI=(rawMinI+rawMaxI)/2+v.offsetT;
+  const minI=midI-visIR/2, maxI=midI+visIR/2;
 
   // Price axis
   const rawMinP=Math.min(...bars.map(b=>b.l)), rawMaxP=Math.max(...bars.map(b=>b.h));
@@ -282,12 +283,33 @@ function getScale(tfId){
   const midP=(rawMinP+rawMaxP)/2+v.offsetP;
   const minP=midP-visVR/2, maxP=midP+visVR/2;
 
-  return {bars,W,H,cw,ch,minT,maxT,tr:maxT-minT||1,minP,maxP,vr:maxP-minP||1};
+  return {bars,W,H,cw,ch,minI,maxI,ir:maxI-minI||1,minP,maxP,vr:maxP-minP||1};
 }
 function pToY(p,sc){return PAD.t+sc.ch-(p-sc.minP)/sc.vr*sc.ch;}
-function tToX(t,sc){return PAD.l+(t-sc.minT)/sc.tr*sc.cw;}
-function xToT(x,sc){return sc.minT+(x-PAD.l)/sc.cw*sc.tr;}
 function yToP(y,sc){return sc.maxP-(y-PAD.t)/sc.ch*sc.vr;}
+// Index <-> X
+function iToX(i,sc){return PAD.l+(i-sc.minI)/sc.ir*sc.cw;}
+function xToI(x,sc){return sc.minI+(x-PAD.l)/sc.cw*sc.ir;}
+// Time <-> fractional index (interpolate over bars)
+function tToI(t,bars){
+  if(t<=bars[0].t)return 0;
+  if(t>=bars[bars.length-1].t)return bars.length-1+(t-bars[bars.length-1].t)/((bars[bars.length-1].t-bars[bars.length-2].t)||1);
+  // binary search
+  let lo=0,hi=bars.length-1;
+  while(hi-lo>1){const mid=(lo+hi)>>1; if(bars[mid].t<=t)lo=mid;else hi=mid;}
+  const span=(bars[hi].t-bars[lo].t)||1;
+  return lo+(t-bars[lo].t)/span;
+}
+function iToT(i,bars){
+  if(i<=0)return bars[0].t;
+  if(i>=bars.length-1)return bars[bars.length-1].t;
+  const lo=Math.floor(i),hi=Math.ceil(i),frac=i-lo;
+  if(lo===hi)return bars[lo].t;
+  return bars[lo].t+(bars[hi].t-bars[lo].t)*frac;
+}
+// Time <-> X (via index)
+function tToX(t,sc){return iToX(tToI(t,sc.bars),sc);}
+function xToT(x,sc){return iToT(xToI(x,sc),sc.bars);}
 
 // ==================== RENDER ====================
 function renderAll(){CFG.order.filter(id=>CFG.visible[id]).forEach(id=>renderChart(id));}
@@ -320,22 +342,22 @@ function renderChart(tfId){
     ctx.fillText(Math.round(sc.maxP-(sc.vr/4)*i).toLocaleString(),W-PAD.r+3,yy+3);
   }
 
-  // Candles (time-based X so pan/zoom works)
+  // Candles (index-based X: closed-market gaps collapsed)
   const cfgN=CFG.candles[tfId]||0;
-  const dispBars=cfgN>0?bars.slice(-Math.min(cfgN,bars.length)):bars;
-  // candle width based on time spacing between bars
-  const barGapT = dispBars.length>1 ? (dispBars[dispBars.length-1].t-dispBars[0].t)/(dispBars.length-1) : 1;
-  const bw=Math.max(1, (barGapT/sc.tr)*sc.cw*0.6);
-  dispBars.forEach((bar)=>{
-    const cx=tToX(bar.t,sc);
-    if(cx<PAD.l-bw*2||cx>W-PAD.r+bw*2)return;
+  const startIdx=cfgN>0?Math.max(0,bars.length-cfgN):0;
+  // candle width: one index unit in pixels
+  const bw=Math.max(1, (1/sc.ir)*sc.cw*0.6);
+  for(let bi=startIdx;bi<bars.length;bi++){
+    const bar=bars[bi];
+    const cx=iToX(bi,sc);
+    if(cx<PAD.l-bw*2||cx>W-PAD.r+bw*2)continue;
     const bull=bar.c>=bar.o;
     ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
     ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(cx,pToY(bar.h,sc)); ctx.lineTo(cx,pToY(bar.l,sc)); ctx.stroke();
     const y1=pToY(Math.max(bar.o,bar.c),sc), y2=pToY(Math.min(bar.o,bar.c),sc);
     ctx.fillRect(cx-bw/2,y1,bw,Math.max(1,y2-y1));
-  });
+  }
 
   // Current price tag only
   const cur=bars.at(-1).c;
@@ -567,11 +589,10 @@ function attachChart(tfId){
     const t=xToT(p.x,sc), pr=yToP(p.y,sc);
 
     if(state.type==='pan'){
-      // Use pixel delta from last position, convert to time/price units
       const dxPx=p.x-state.lastX;
       const dyPx=p.y-state.lastY;
-      // time per pixel = tr/cw, price per pixel = vr/ch
-      VIEW[tfId].offsetT -= dxPx*(sc.tr/sc.cw);
+      // index per pixel = ir/cw, price per pixel = vr/ch
+      VIEW[tfId].offsetT -= dxPx*(sc.ir/sc.cw);
       VIEW[tfId].offsetP += dyPx*(sc.vr/sc.ch);
       state.lastX=p.x; state.lastY=p.y;
       renderAll(); return;
