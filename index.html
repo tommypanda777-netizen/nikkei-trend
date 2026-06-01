@@ -192,12 +192,12 @@ function loadCfg(){
 }
 function savePal(){  try{localStorage.setItem('chart_pal',JSON.stringify(PALETTE));}catch{} }
 function loadPal(){  try{const p=JSON.parse(localStorage.getItem('chart_pal')||'null'); if(p)PALETTE=p;}catch{} }
-const VK = () => 'chart_view_v2_'+SYM;
+const VK = () => 'chart_view_v3_'+SYM;
 function saveView(){ try{localStorage.setItem(VK(),JSON.stringify(VIEW));}catch{} }
 function loadView(){ try{const v=JSON.parse(localStorage.getItem(VK())||'null'); if(v){Object.keys(v).forEach(k=>{
   const o=v[k];
   // Sanity check: offsets must be reasonable index/price values, scales positive
-  if(o && Math.abs(o.offsetT)<100000 && o.scaleT>0 && o.scaleT<100 && o.scaleP>0 && o.scaleP<100){
+  if(o && isFinite(o.offsetT) && Math.abs(o.offsetT)<1e10 && o.scaleT>0 && o.scaleT<100 && o.scaleP>0 && o.scaleP<100){
     VIEW[k]=o;
   }
 });}}catch{} }
@@ -267,24 +267,51 @@ async function loadAll(){
 }
 let _firstLoadDone=false;
 
-// Adjust offsetT so the latest bar sits 5 bars in from the right edge,
-// keeping the current zoom level (scaleT) intact.
-const RIGHT_MARGIN_BARS = 5;
-function alignRight(tfId){
-  const bars=DATA[tfId];
-  if(!bars||bars.length<2)return;
-  const v=VIEW[tfId];
-  if(!v)return;
-  const N=bars.length;
-  const rawIR=(N-1)||1;
-  const visIR=rawIR/v.scaleT;
-  // We want maxI (right visible edge) = (N-1) + RIGHT_MARGIN_BARS
-  // maxI = midI + visIR/2, midI = (N-1)/2 + offsetT
-  // => offsetT = (N-1)+margin - visIR/2 - (N-1)/2
-  v.offsetT = (N-1) + RIGHT_MARGIN_BARS - visIR/2 - (N-1)/2;
+// ==================== COMPRESSED TIME AXIS ====================
+// Build a per-chart piecewise-linear map: realTime -> compressedTime.
+// Gaps between consecutive bars larger than (median bar interval * GAP_FACTOR)
+// are compressed to (median interval * GAP_COMPRESS) so closed-market periods shrink.
+const GAP_FACTOR = 3;     // gap > 3x normal interval = closed market
+const GAP_COMPRESS = 1;   // compress big gaps to ~1 normal interval
+
+function buildCompMap(bars){
+  // median interval
+  const diffs=[];
+  for(let i=1;i<bars.length;i++) diffs.push(bars[i].t-bars[i-1].t);
+  diffs.sort((a,b)=>a-b);
+  const med=diffs[Math.floor(diffs.length/2)]||1;
+  const maxGap=med*GAP_FACTOR;
+  const compGap=med*GAP_COMPRESS;
+  // breakpoints: arrays of real-time and corresponding compressed-time
+  const realArr=[bars[0].t];
+  const compArr=[0];
+  let comp=0;
+  for(let i=1;i<bars.length;i++){
+    let d=bars[i].t-bars[i-1].t;
+    if(d>maxGap) d=compGap; // compress closed-market gap
+    comp+=d;
+    realArr.push(bars[i].t);
+    compArr.push(comp);
+  }
+  return {realArr,compArr,med,compGap};
 }
 
-// ==================== SCALE (index-based to skip closed-market gaps) ====================
+// real time -> compressed time (using a chart's comp map)
+function realToComp(t,cm){
+  const {realArr,compArr,med,compGap}=cm;
+  const n=realArr.length;
+  if(t<=realArr[0]) return compArr[0]+(t-realArr[0]); // extrapolate before
+  if(t>=realArr[n-1]) return compArr[n-1]+(t-realArr[n-1]); // extrapolate after (live edge)
+  let lo=0,hi=n-1;
+  while(hi-lo>1){const mid=(lo+hi)>>1; if(realArr[mid]<=t)lo=mid;else hi=mid;}
+  // within segment lo->hi: if real gap was compressed, map proportionally onto compressed gap
+  const realSpan=realArr[hi]-realArr[lo];
+  const compSpan=compArr[hi]-compArr[lo];
+  if(realSpan<=0) return compArr[lo];
+  return compArr[lo]+(t-realArr[lo])/realSpan*compSpan;
+}
+
+// ==================== SCALE (compressed-time axis) ====================
 function getScale(tfId){
   const bars=DATA[tfId];
   if(!bars||bars.length<2)return null;
@@ -295,12 +322,13 @@ function getScale(tfId){
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
   const v=VIEW[tfId]||{offsetT:0,scaleT:1,offsetP:0,scaleP:1};
 
-  // Index axis: bars at positions 0..N-1. offsetT now means index-offset.
-  const N=bars.length;
-  const rawMinI=0, rawMaxI=N-1, rawIR=rawMaxI-rawMinI||1;
-  const visIR=rawIR/v.scaleT;
-  const midI=(rawMinI+rawMaxI)/2+v.offsetT;
-  const minI=midI-visIR/2, maxI=midI+visIR/2;
+  const cm=buildCompMap(bars);
+  // compressed-time range of all bars
+  const rawMinC=cm.compArr[0], rawMaxC=cm.compArr[cm.compArr.length-1];
+  const rawCR=rawMaxC-rawMinC||1;
+  const visCR=rawCR/v.scaleT;
+  const midC=(rawMinC+rawMaxC)/2+v.offsetT;
+  const minC=midC-visCR/2, maxC=midC+visCR/2;
 
   // Price axis
   const rawMinP=Math.min(...bars.map(b=>b.l)), rawMaxP=Math.max(...bars.map(b=>b.h));
@@ -309,33 +337,46 @@ function getScale(tfId){
   const midP=(rawMinP+rawMaxP)/2+v.offsetP;
   const minP=midP-visVR/2, maxP=midP+visVR/2;
 
-  return {bars,W,H,cw,ch,minI,maxI,ir:maxI-minI||1,minP,maxP,vr:maxP-minP||1};
+  return {bars,cm,W,H,cw,ch,minC,maxC,cr:maxC-minC||1,minP,maxP,vr:maxP-minP||1,
+          compGap:cm.compGap};
 }
 function pToY(p,sc){return PAD.t+sc.ch-(p-sc.minP)/sc.vr*sc.ch;}
 function yToP(y,sc){return sc.maxP-(y-PAD.t)/sc.ch*sc.vr;}
-// Index <-> X
-function iToX(i,sc){return PAD.l+(i-sc.minI)/sc.ir*sc.cw;}
-function xToI(x,sc){return sc.minI+(x-PAD.l)/sc.cw*sc.ir;}
-// Time <-> fractional index (interpolate over bars)
-function tToI(t,bars){
-  if(t<=bars[0].t)return 0;
-  if(t>=bars[bars.length-1].t)return bars.length-1+(t-bars[bars.length-1].t)/((bars[bars.length-1].t-bars[bars.length-2].t)||1);
-  // binary search
-  let lo=0,hi=bars.length-1;
-  while(hi-lo>1){const mid=(lo+hi)>>1; if(bars[mid].t<=t)lo=mid;else hi=mid;}
-  const span=(bars[hi].t-bars[lo].t)||1;
-  return lo+(t-bars[lo].t)/span;
+// Compressed-time <-> X
+function cToX(c,sc){return PAD.l+(c-sc.minC)/sc.cr*sc.cw;}
+function xToC(x,sc){return sc.minC+(x-PAD.l)/sc.cw*sc.cr;}
+// Real time <-> X (via compressed map)
+function tToX(t,sc){return cToX(realToComp(t,sc.cm),sc);}
+// X -> real time: invert comp map
+function xToT(x,sc){
+  const c=xToC(x,sc);
+  const {realArr,compArr}=sc.cm;
+  const n=compArr.length;
+  if(c<=compArr[0]) return realArr[0]+(c-compArr[0]);
+  if(c>=compArr[n-1]) return realArr[n-1]+(c-compArr[n-1]);
+  let lo=0,hi=n-1;
+  while(hi-lo>1){const mid=(lo+hi)>>1; if(compArr[mid]<=c)lo=mid;else hi=mid;}
+  const compSpan=compArr[hi]-compArr[lo];
+  const realSpan=realArr[hi]-realArr[lo];
+  if(compSpan<=0) return realArr[lo];
+  return realArr[lo]+(c-compArr[lo])/compSpan*realSpan;
 }
-function iToT(i,bars){
-  if(i<=0)return bars[0].t;
-  if(i>=bars.length-1)return bars[bars.length-1].t;
-  const lo=Math.floor(i),hi=Math.ceil(i),frac=i-lo;
-  if(lo===hi)return bars[lo].t;
-  return bars[lo].t+(bars[hi].t-bars[lo].t)*frac;
+
+// Adjust offsetT so latest bar sits RIGHT_MARGIN bars in from right edge
+const RIGHT_MARGIN_BARS = 5;
+function alignRight(tfId){
+  const bars=DATA[tfId];
+  if(!bars||bars.length<2)return;
+  const v=VIEW[tfId];
+  if(!v)return;
+  const cm=buildCompMap(bars);
+  const rawMinC=cm.compArr[0], rawMaxC=cm.compArr[cm.compArr.length-1];
+  const rawCR=rawMaxC-rawMinC||1;
+  const visCR=rawCR/v.scaleT;
+  const margin=cm.compGap*RIGHT_MARGIN_BARS;
+  // want maxC = rawMaxC + margin; maxC = midC+visCR/2; midC=(rawMinC+rawMaxC)/2+offsetT
+  v.offsetT = rawMaxC + margin - visCR/2 - (rawMinC+rawMaxC)/2;
 }
-// Time <-> X (via index)
-function tToX(t,sc){return iToX(tToI(t,sc.bars),sc);}
-function xToT(x,sc){return iToT(xToI(x,sc),sc.bars);}
 
 // ==================== RENDER ====================
 function renderAll(){CFG.order.filter(id=>CFG.visible[id]).forEach(id=>renderChart(id));}
@@ -368,14 +409,14 @@ function renderChart(tfId){
     ctx.fillText(Math.round(sc.maxP-(sc.vr/4)*i).toLocaleString(),W-PAD.r+3,yy+3);
   }
 
-  // Candles (index-based X: closed-market gaps collapsed)
+  // Candles (compressed-time X)
   const cfgN=CFG.candles[tfId]||0;
   const startIdx=cfgN>0?Math.max(0,bars.length-cfgN):0;
-  // candle width: one index unit in pixels
-  const bw=Math.max(1, (1/sc.ir)*sc.cw*0.6);
+  // candle width: one compGap in pixels
+  const bw=Math.max(1, (sc.compGap/sc.cr)*sc.cw*0.6);
   for(let bi=startIdx;bi<bars.length;bi++){
     const bar=bars[bi];
-    const cx=iToX(bi,sc);
+    const cx=tToX(bar.t,sc);
     if(cx<PAD.l-bw*2||cx>W-PAD.r+bw*2)continue;
     const bull=bar.c>=bar.o;
     ctx.strokeStyle=ctx.fillStyle=bull?'#ff3d5a':'#00c4ff';
@@ -618,7 +659,7 @@ function attachChart(tfId){
       const dxPx=p.x-state.lastX;
       const dyPx=p.y-state.lastY;
       // index per pixel = ir/cw, price per pixel = vr/ch
-      VIEW[tfId].offsetT -= dxPx*(sc.ir/sc.cw);
+      VIEW[tfId].offsetT -= dxPx*(sc.cr/sc.cw);
       VIEW[tfId].offsetP += dyPx*(sc.vr/sc.ch);
       state.lastX=p.x; state.lastY=p.y;
       renderAll(); return;
