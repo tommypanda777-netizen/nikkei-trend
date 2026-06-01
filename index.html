@@ -192,7 +192,7 @@ function loadCfg(){
 }
 function savePal(){  try{localStorage.setItem('chart_pal',JSON.stringify(PALETTE));}catch{} }
 function loadPal(){  try{const p=JSON.parse(localStorage.getItem('chart_pal')||'null'); if(p)PALETTE=p;}catch{} }
-const VK = () => 'chart_view_v5_'+SYM;
+const VK = () => 'chart_view_v6_'+SYM;
 function saveView(){ try{localStorage.setItem(VK(),JSON.stringify(VIEW));}catch{} }
 function loadView(){ try{const v=JSON.parse(localStorage.getItem(VK())||'null'); if(v){Object.keys(v).forEach(k=>{
   const o=v[k];
@@ -302,29 +302,31 @@ function applyCandleZoom(tfId){
 // Build a per-chart piecewise-linear map: realTime -> compressedTime.
 // Gaps between consecutive bars larger than (median bar interval * GAP_FACTOR)
 // are compressed to (median interval * GAP_COMPRESS) so closed-market periods shrink.
-const GAP_FACTOR = 3;        // gap > 3x normal interval = closed market
-const GAP_KEEP = 0.20;       // keep 20% of closed-market gap width
+// Closed-market gaps are compressed in ABSOLUTE real-time terms so that
+// every chart maps the same real timestamp to the same compressed time.
+// A gap's overage beyond NORMAL_GAP_SEC is kept at GAP_KEEP ratio.
+const GAP_KEEP = 0.10;            // keep 10% of the closed-market overage
+const GAP_THRESHOLD_SEC = 3*3600; // gaps longer than 3h are "closed market"
 
 function buildCompMap(bars){
-  // median interval
-  const diffs=[];
-  for(let i=1;i<bars.length;i++) diffs.push(bars[i].t-bars[i-1].t);
-  diffs.sort((a,b)=>a-b);
-  const med=diffs[Math.floor(diffs.length/2)]||1;
-  const maxGap=med*GAP_FACTOR;
   const realArr=[bars[0].t];
   const compArr=[0];
   let comp=0;
   for(let i=1;i<bars.length;i++){
     let d=bars[i].t-bars[i-1].t;
-    // Compress closed-market gaps proportionally (keep GAP_KEEP of overage)
-    if(d>maxGap){
-      d = med + (d-med)*GAP_KEEP;
+    if(d>GAP_THRESHOLD_SEC){
+      // keep threshold + a fraction of the overage (absolute seconds)
+      d = GAP_THRESHOLD_SEC + (d-GAP_THRESHOLD_SEC)*GAP_KEEP;
     }
     comp+=d;
     realArr.push(bars[i].t);
     compArr.push(comp);
   }
+  // median real interval (for candle width / bar spacing)
+  const diffs=[];
+  for(let i=1;i<bars.length;i++) diffs.push(bars[i].t-bars[i-1].t);
+  diffs.sort((a,b)=>a-b);
+  const med=diffs[Math.floor(diffs.length/2)]||1;
   return {realArr,compArr,med,compGap:med};
 }
 
