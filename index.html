@@ -565,13 +565,15 @@ function drawLine(ctx,line,sc,W,H,preview,sel){
     const x2=tToX(line.p2Time,sc),y2=pToY(line.p2Price,sc);
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
     if(line.phase===2){
-      const offPx=(line.p3Price-line.p1Price)*sc.ch/sc.vr;
-      ctx.beginPath(); ctx.moveTo(x1,y1-offPx); ctx.lineTo(x2,y2-offPx); ctx.stroke();
+      // Parallel line defined in PRICE space: each endpoint shifted by dP price.
+      const dP=line.p3Price-line.p1Price;
+      const y1b=pToY(line.p1Price+dP,sc), y2b=pToY(line.p2Price+dP,sc);
+      ctx.beginPath(); ctx.moveTo(x1,y1b); ctx.lineTo(x2,y2b); ctx.stroke();
       ctx.globalAlpha=0.07; ctx.fillStyle=line.color;
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x2,y2-offPx); ctx.lineTo(x1,y1-offPx); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x2,y2b); ctx.lineTo(x1,y1b); ctx.closePath(); ctx.fill();
       if(sel){
         ctx.setLineDash([]); ctx.globalAlpha=1; ctx.shadowBlur=0;
-        [[x1,y1],[x2,y2],[x1,y1-offPx],[x2,y2-offPx]].forEach(([ex,ey])=>{
+        [[x1,y1],[x2,y2],[x1,y1b],[x2,y2b]].forEach(([ex,ey])=>{
           ctx.beginPath(); ctx.arc(ex,ey,5,0,Math.PI*2);
           ctx.fillStyle=line.color; ctx.fill();
           ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke();
@@ -594,8 +596,12 @@ function hitLine(line,x,y,sc,thr=14){
   const t=Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/len2));
   if(Math.hypot(x-(x1+t*dx),y-(y1+t*dy))<thr)return true;
   if(line.type==='channel'&&line.phase===2){
-    const off=(line.p3Price-line.p1Price)*sc.ch/sc.vr;
-    if(Math.hypot(x-(x1+t*dx),y-(y1+t*dy-off))<thr)return true;
+    const dP=line.p3Price-line.p1Price;
+    const y1b=pToY(line.p1Price+dP,sc), y2b=pToY(line.p2Price+dP,sc);
+    // distance to parallel segment
+    const dxb=x2-x1, dyb=y2b-y1b, len2b=dxb*dxb+dyb*dyb;
+    const tb=len2b>0?Math.max(0,Math.min(1,((x-x1)*dxb+(y-y1b)*dyb)/len2b)):0;
+    if(Math.hypot(x-(x1+tb*dxb),y-(y1b+tb*dyb))<thr)return true;
   }
   return false;
 }
@@ -607,9 +613,10 @@ function hitEndpoint(line,x,y,sc,thr=18){
   if(Math.hypot(x-x1,y-y1)<thr)return 'p1';
   if(Math.hypot(x-x2,y-y2)<thr)return 'p2';
   if(line.type==='channel'&&line.phase===2){
-    const off=(line.p3Price-line.p1Price)*sc.ch/sc.vr;
-    if(Math.hypot(x-x1,y-(y1-off))<thr)return 'c1';
-    if(Math.hypot(x-x2,y-(y2-off))<thr)return 'c2';
+    const dP=line.p3Price-line.p1Price;
+    const y1b=pToY(line.p1Price+dP,sc), y2b=pToY(line.p2Price+dP,sc);
+    if(Math.hypot(x-x1,y-y1b)<thr)return 'c1';
+    if(Math.hypot(x-x2,y-y2b)<thr)return 'c2';
   }
   return null;
 }
