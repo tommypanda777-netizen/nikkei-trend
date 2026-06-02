@@ -255,11 +255,18 @@ async function loadAll(){
       bars=await fetchYahoo(SYM,tf.interval,tf.fallbackRange);
     }
     DATA[id]=bars;
-    if(!VIEW[id]){
-      VIEW[id]={offsetT:0,scaleT:1,offsetP:0,scaleP:1};
-      if(bars) setDefaultZoom(id);
+    if(!VIEW[id]) VIEW[id]={offsetT:0,scaleT:1,offsetP:0,scaleP:1};
+    if(bars){
+      if(LOCKED.has(id)){
+        // locked: keep restored view as-is
+      } else if(!_firstLoadDone){
+        // first load, unlocked: set sensible default zoom + align latest
+        setDefaultZoom(id);
+      } else {
+        // subsequent refresh, unlocked: follow latest
+        alignRight(id);
+      }
     }
-    if(_firstLoadDone) alignRight(id);
     renderChart(id);
   }
   loadLines();
