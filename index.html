@@ -111,6 +111,15 @@ canvas{display:block;width:100%;touch-action:none;}
   </div>
   <div class="cfg-sec">ツールバー背景色</div>
   <div class="cfg-row"><div class="cfg-label">背景色</div><input type="color" id="cfgTbBg" onchange="setTbBg(this.value)" style="width:34px;height:28px;border:none;border-radius:4px;cursor:pointer;padding:1px;"></div>
+  <div class="cfg-sec">25日移動平均線</div>
+  <div class="cfg-row">
+    <div class="cfg-label">表示</div>
+    <input type="checkbox" id="cfgMaShow" onchange="setMaShow(this.checked)" style="width:18px;height:18px;accent-color:var(--gold);cursor:pointer;">
+  </div>
+  <div class="cfg-row">
+    <div class="cfg-label">線の色</div>
+    <input type="color" id="cfgMaColor" onchange="setMaColor(this.value)" style="width:34px;height:28px;border:none;border-radius:4px;cursor:pointer;padding:1px;">
+  </div>
   <div class="cfg-sec">パレット色数</div>
   <div id="cfgPalCnt" class="cfg-row" style="flex-wrap:wrap;gap:4px;"></div>
   <div class="cfg-sec">パレット色カスタム</div>
@@ -167,6 +176,8 @@ let CFG = {
   visible: {'5m':true,'15m':true,'1h':true,'1d':false,'1wk':false,'1mo':false},
   heights: {'5m':200,'15m':200,'1h':200,'1d':200,'1wk':200,'1mo':200},
   candles: {'5m':0,'15m':0,'1h':0,'1d':0,'1wk':0,'1mo':0},
+  maShow: true,
+  maColor: '#f5a623',
 };
 let PALETTE = ['#ffffff','#ff3d5a','#00c4ff','#f5c842','#44ff88','#ff8844','#cc88ff','#aaaaaa','#00ff00','#ff00ff'];
 let PAL_ACTIVE = 0;
@@ -280,20 +291,27 @@ async function loadAll(){
 let _firstLoadDone=false;
 
 // 25-day moving-average deviation rate (using daily data of current symbol)
+let MA25_SERIES = null; // [{t, ma}] daily 25-MA time series
 async function updateDeviationRate(){
   try{
-    // Use already-loaded daily data if available, else fetch
     let daily=DATA['1d'];
     if(!daily||daily.length<26){
-      daily=await fetchYahoo(SYM,'1d','3mo');
+      daily=await fetchYahoo(SYM,'1d','6mo');
     }
-    if(!daily||daily.length<26){ setDevDisplay(null); return; }
+    if(!daily||daily.length<26){ setDevDisplay(null); MA25_SERIES=null; return; }
     const closes=daily.map(b=>b.c);
+    // Build full 25-MA series
+    MA25_SERIES=[];
+    for(let i=24;i<daily.length;i++){
+      const ma=closes.slice(i-24,i+1).reduce((a,b)=>a+b,0)/25;
+      MA25_SERIES.push({t:daily[i].t, ma});
+    }
     const last=closes[closes.length-1];
     const ma25=closes.slice(-25).reduce((a,b)=>a+b,0)/25;
     const dev=(last-ma25)/ma25*100;
     setDevDisplay(dev);
-  }catch{ setDevDisplay(null); }
+    renderAll(); // redraw to show MA line
+  }catch{ setDevDisplay(null); MA25_SERIES=null; }
 }
 function setDevDisplay(dev){
   const wrap=document.getElementById('devRate');
@@ -566,6 +584,23 @@ function renderChart(tfId){
       tag.textContent=Math.round(cur).toLocaleString();
       tag.style.top=ty+'px';
     }
+  }
+
+  // 25-day MA line (daily-based, drawn on all charts)
+  if(CFG.maShow && MA25_SERIES && MA25_SERIES.length>1){
+    ctx.save();
+    ctx.strokeStyle=CFG.maColor||'#f5a623';
+    ctx.lineWidth=1.2;
+    ctx.beginPath();
+    let started=false;
+    for(const pt of MA25_SERIES){
+      const x=tToX(pt.t,sc), y=pToY(pt.ma,sc);
+      if(x<PAD.l-50||x>W-PAD.r+50) { started=false; continue; }
+      if(!started){ ctx.moveTo(x,y); started=true; }
+      else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   // Saved lines
@@ -976,9 +1011,13 @@ function openSettings(){renderSettings();document.getElementById('settingsOverla
 function closeSettings(){document.getElementById('settingsOverlay').style.display='none';document.getElementById('settingsPanel').style.display='none';}
 
 function setTbBg(c){CFG.tbBg=c;document.getElementById('toolbar').style.background=c;saveCfg();}
+function setMaShow(v){CFG.maShow=v;saveCfg();renderAll();}
+function setMaColor(c){CFG.maColor=c;saveCfg();renderAll();}
 
 function renderSettings(){
   document.getElementById('cfgTbBg').value=CFG.tbBg||'#1e1e1e';
+  document.getElementById('cfgMaShow').checked=CFG.maShow!==false;
+  document.getElementById('cfgMaColor').value=CFG.maColor||'#f5a623';
 
   // Palette count
   const cnt=document.getElementById('cfgPalCnt');
