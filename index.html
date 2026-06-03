@@ -94,6 +94,7 @@ canvas{display:block;width:100%;touch-action:none;}
     <select class="tb-sel" id="autoSel" onchange="setAuto(this.value)" style="width:72px"></select>
     <button class="tb-btn" onclick="loadAll()" style="font-size:16px">↻</button>
     <span id="updTime" style="font-size:15px;color:#ccc;min-width:46px">---</span>
+    <span id="devRate" style="margin-left:14px;font-size:15px;color:#ccc;white-space:nowrap">25MA乖離率 <span id="devVal" style="font-size:18px">--</span></span>
     <button class="tb-btn disabled" id="btnUndo" onclick="undo()" style="margin-left:auto;font-size:16px">↩</button>
     <button class="tb-btn disabled" id="btnRedo" onclick="redo()" style="font-size:16px">↪</button>
   </div>
@@ -274,8 +275,41 @@ async function loadAll(){
   _firstLoadDone=true;
   const n=new Date();
   document.getElementById('updTime').textContent=n.getHours()+':'+String(n.getMinutes()).padStart(2,'0');
+  updateDeviationRate();
 }
 let _firstLoadDone=false;
+
+// 25-day moving-average deviation rate (using daily data of current symbol)
+async function updateDeviationRate(){
+  try{
+    // Use already-loaded daily data if available, else fetch
+    let daily=DATA['1d'];
+    if(!daily||daily.length<26){
+      daily=await fetchYahoo(SYM,'1d','3mo');
+    }
+    if(!daily||daily.length<26){ setDevDisplay(null); return; }
+    const closes=daily.map(b=>b.c);
+    const last=closes[closes.length-1];
+    const ma25=closes.slice(-25).reduce((a,b)=>a+b,0)/25;
+    const dev=(last-ma25)/ma25*100;
+    setDevDisplay(dev);
+  }catch{ setDevDisplay(null); }
+}
+function setDevDisplay(dev){
+  const wrap=document.getElementById('devRate');
+  const val=document.getElementById('devVal');
+  if(!wrap||!val)return;
+  if(dev===null||!isFinite(dev)){ val.textContent='--'; val.style.color='#ccc'; return; }
+  const s=(dev>=0?'+':'')+dev.toFixed(2)+'%';
+  val.textContent=s;
+  // Color thresholds (value only; label stays time color)
+  let color='#fff';
+  if(dev>7) color='#ff3d5a';        // red
+  else if(dev>5) color='#f5c842';   // yellow
+  else if(dev<-5) color='#00c4ff';  // blue
+  else color='#fff';                // normal white
+  val.style.color=color;
+}
 
 // Show recent bars. Uses configured candle count, else DEFAULT_VISIBLE_BARS.
 const DEFAULT_VISIBLE_BARS = 60;
