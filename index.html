@@ -232,7 +232,7 @@ async function fetchYahoo(sym,interval,range){
   const ctrl=new AbortController();
   const t=setTimeout(()=>ctrl.abort(),9000);
   try{
-    const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:ctrl.signal});
+    const r=await fetch('https://corsproxy.io/?url='+encodeURIComponent(url),{signal:ctrl.signal});
     clearTimeout(t);
     if(!r.ok)return null;
     const j=await r.json();
