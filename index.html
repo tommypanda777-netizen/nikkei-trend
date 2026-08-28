@@ -226,27 +226,37 @@ function updateUndoBtns(){
 }
 
 // ==================== FETCH ====================
+// Multiple CORS proxies tried in order; if one is down/rate-limited, fall through to the next.
+const CORS_PROXIES = [
+  url => 'https://corsproxy.io/?url='+encodeURIComponent(url),
+  url => 'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
+  url => 'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(url),
+];
+
 async function fetchYahoo(sym,interval,range){
   const url='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)
     +'?interval='+interval+'&range='+range+'&includePrePost=false';
-  const ctrl=new AbortController();
-  const t=setTimeout(()=>ctrl.abort(),9000);
-  try{
-    const r=await fetch('https://corsproxy.io/?url='+encodeURIComponent(url),{signal:ctrl.signal});
-    clearTimeout(t);
-    if(!r.ok)return null;
-    const j=await r.json();
-    const res=j?.chart?.result?.[0];
-    const q=res?.indicators?.quote?.[0];
-    const ts=res?.timestamp||[];
-    if(!q||!ts.length)return null;
-    const bars=[];
-    for(let i=0;i<ts.length;i++){
-      const c=q.close?.[i],h=q.high?.[i],l=q.low?.[i],o=q.open?.[i];
-      if(c!=null&&h!=null&&l!=null)bars.push({t:ts[i],o:o||c,h,l,c});
-    }
-    return bars.length>=2?bars:null;
-  }catch{clearTimeout(t);return null;}
+  for(const buildProxyUrl of CORS_PROXIES){
+    const ctrl=new AbortController();
+    const t=setTimeout(()=>ctrl.abort(),9000);
+    try{
+      const r=await fetch(buildProxyUrl(url),{signal:ctrl.signal});
+      clearTimeout(t);
+      if(!r.ok) continue; // try next proxy
+      const j=await r.json();
+      const res=j?.chart?.result?.[0];
+      const q=res?.indicators?.quote?.[0];
+      const ts=res?.timestamp||[];
+      if(!q||!ts.length) continue; // try next proxy
+      const bars=[];
+      for(let i=0;i<ts.length;i++){
+        const c=q.close?.[i],h=q.high?.[i],l=q.low?.[i],o=q.open?.[i];
+        if(c!=null&&h!=null&&l!=null)bars.push({t:ts[i],o:o||c,h,l,c});
+      }
+      if(bars.length>=2) return bars; // success
+    }catch{ clearTimeout(t); /* try next proxy */ }
+  }
+  return null; // all proxies failed
 }
 
 async function loadAll(){
