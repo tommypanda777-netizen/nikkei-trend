@@ -237,13 +237,12 @@ async function fetchYahoo(sym,interval,range){
   const url='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)
     +'?interval='+interval+'&range='+range+'&includePrePost=false';
   for(const buildProxyUrl of CORS_PROXIES){
-    const ctrl=new AbortController();
-    const t=setTimeout(()=>ctrl.abort(),9000);
     try{
-      const r=await fetch(buildProxyUrl(url),{signal:ctrl.signal});
-      clearTimeout(t);
+      const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),8000));
+      const fetchPromise=fetch(buildProxyUrl(url));
+      const r=await Promise.race([fetchPromise,timeoutPromise]);
       if(!r.ok) continue; // try next proxy
-      const j=await r.json();
+      const j=await Promise.race([r.json(),timeoutPromise]);
       const res=j?.chart?.result?.[0];
       const q=res?.indicators?.quote?.[0];
       const ts=res?.timestamp||[];
@@ -254,7 +253,7 @@ async function fetchYahoo(sym,interval,range){
         if(c!=null&&h!=null&&l!=null)bars.push({t:ts[i],o:o||c,h,l,c});
       }
       if(bars.length>=2) return bars; // success
-    }catch{ clearTimeout(t); /* try next proxy */ }
+    }catch{ /* try next proxy */ }
   }
   return null; // all proxies failed
 }
@@ -263,20 +262,28 @@ async function loadAll(){
   document.getElementById('updTime').textContent='…';
   loadView();
   const visibleIds=CFG.order.filter(id=>CFG.visible[id]);
-  // Fetch sequentially with small delay to avoid proxy rate limits
+  // Fetch sequentially; each fetch is hard-capped so one hung request
+  // can never block the whole chart list from loading.
+  function withHardTimeout(promise,ms){
+    return Promise.race([
+      promise,
+      new Promise(resolve=>setTimeout(()=>resolve(null),ms))
+    ]);
+  }
   for(const id of visibleIds){
     const tf=TF_DEFS[id];
-    let bars=await fetchYahoo(SYM,tf.interval,tf.range);
+    let bars=await withHardTimeout(fetchYahoo(SYM,tf.interval,tf.range),10000);
     if(!bars){
       await new Promise(r=>setTimeout(r,600));
-      bars=await fetchYahoo(SYM,tf.interval,tf.range);
+      bars=await withHardTimeout(fetchYahoo(SYM,tf.interval,tf.range),10000);
     }
     // Try fallback range (e.g. 5m: 1d→5d when market closed)
     if(!bars && tf.fallbackRange){
       await new Promise(r=>setTimeout(r,400));
-      bars=await fetchYahoo(SYM,tf.interval,tf.fallbackRange);
+      bars=await withHardTimeout(fetchYahoo(SYM,tf.interval,tf.fallbackRange),10000);
     }
     DATA[id]=bars;
+    if(!bars) drawPlaceholder(id,'取得失敗 — ↻で再試行');
     if(!VIEW[id]) VIEW[id]={offsetT:0,scaleT:1,offsetP:0,scaleP:1};
     if(bars){
       if(LOCKED.has(id)){
@@ -288,8 +295,8 @@ async function loadAll(){
         // subsequent refresh, unlocked: follow latest
         alignRight(id);
       }
+      renderChart(id);
     }
-    renderChart(id);
   }
   loadLines();
   renderAll();
@@ -1148,7 +1155,23 @@ function rebuildCharts(){
     `;
     container.appendChild(wrap);
     attachChart(id);
+    // Draw "fetching" placeholder immediately, before any network call starts
+    drawPlaceholder(id,'データ取得中...');
   });
+}
+
+function drawPlaceholder(tfId,msg){
+  const cv=document.getElementById('cv_'+tfId);
+  if(!cv)return;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.offsetWidth||window.innerWidth;
+  const H=CFG.heights[tfId]||200;
+  cv.width=W*dpr; cv.height=H*dpr; cv.style.height=H+'px';
+  const ctx=cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.fillStyle='#0a0a0a'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#555'; ctx.font='12px Share Tech Mono'; ctx.textAlign='center';
+  ctx.fillText(msg,W/2,H/2);
 }
 
 // ==================== INIT ====================
