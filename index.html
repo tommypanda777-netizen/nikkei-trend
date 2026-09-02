@@ -227,10 +227,13 @@ function updateUndoBtns(){
 
 // ==================== FETCH ====================
 // Multiple CORS proxies tried in order; if one is down/rate-limited, fall through to the next.
+// corsproxy.io now restricts its free tier to localhost only, so it's excluded here.
 const CORS_PROXIES = [
-  url => 'https://corsproxy.io/?url='+encodeURIComponent(url),
-  url => 'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
   url => 'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(url),
+  url => 'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
+  url => 'https://corsfix.com/'+url,
+  url => 'https://thingproxy.freeboard.io/fetch/'+url,
+  url => 'https://cors.eu.org/'+url,
 ];
 
 async function fetchYahoo(sym,interval,range){
@@ -238,7 +241,7 @@ async function fetchYahoo(sym,interval,range){
     +'?interval='+interval+'&range='+range+'&includePrePost=false';
   for(const buildProxyUrl of CORS_PROXIES){
     try{
-      const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),8000));
+      const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),4000));
       const fetchPromise=fetch(buildProxyUrl(url));
       const r=await Promise.race([fetchPromise,timeoutPromise]);
       if(!r.ok) continue; // try next proxy
@@ -272,15 +275,15 @@ async function loadAll(){
   }
   for(const id of visibleIds){
     const tf=TF_DEFS[id];
-    let bars=await withHardTimeout(fetchYahoo(SYM,tf.interval,tf.range),10000);
+    let bars=await withHardTimeout(fetchYahoo(SYM,tf.interval,tf.range),22000);
     if(!bars){
       await new Promise(r=>setTimeout(r,600));
-      bars=await withHardTimeout(fetchYahoo(SYM,tf.interval,tf.range),10000);
+      bars=await withHardTimeout(fetchYahoo(SYM,tf.interval,tf.range),22000);
     }
     // Try fallback range (e.g. 5m: 1d→5d when market closed)
     if(!bars && tf.fallbackRange){
       await new Promise(r=>setTimeout(r,400));
-      bars=await withHardTimeout(fetchYahoo(SYM,tf.interval,tf.fallbackRange),10000);
+      bars=await withHardTimeout(fetchYahoo(SYM,tf.interval,tf.fallbackRange),22000);
     }
     DATA[id]=bars;
     if(!bars) drawPlaceholder(id,'取得失敗 — ↻で再試行');
